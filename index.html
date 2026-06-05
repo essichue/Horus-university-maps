@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horus University Campus 3D Map</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    /* ══ LOGO-DRIVEN PREMIUM THEME (DEEP NAVY & HORUS GOLD) ══ */
+    :root {
+      --bg: #030f1e;
+      --surface: #0a1b30;
+      --surface2: #112643;
+      --border: #1c3557;
+      --border-glow: #caa23d; /* Horus Gold Glow */
+      --accent: #caa23d;     /* Horus Gold Primary */
+      --accent2: #f5d070;    /* Horus Gold Light Accent */
+      --accent-glow: rgba(202, 162, 61, 0.25);
+      --text: #e2ecf5;
+      --text-dim: #8fa4b9;
+      --muted: #526982;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0,0,0,0.6);
+      --shadow-lg: 0 16px 64px rgba(0,0,0,0.8);
+    }
+    
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; overflow: hidden; }
+    
+    /* Responsive Application Shell Layout */
+    #app-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #map { 
+      position: absolute; 
+      inset: 0; 
+      transition: height 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ══ LOADING SCREEN ══ */
+    #loading {
+      position: absolute; inset: 0; z-index: 100;
+      background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity .6s ease;
+    }
+    #loading.fade-out { opacity: 0; pointer-events: none; }
+    .load-logo-container {
+      position: relative;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .load-brand-img {
+      width: 120px;
+      height: auto;
+      z-index: 10;
+    }
+    .load-logo-ring {
+      position: absolute; width: 160px; height: 160px; border-radius: 50%;
+      border: 2px solid transparent; border-top-color: var(--accent);
+      animation: spin .9s linear infinite;
+    }
+
+    .load-title {
+      font-size: 24px; font-weight: 800; letter-spacing: .08em;
+      color: var(--text); margin-bottom: 6px; text-transform: uppercase;
+      text-shadow: 0 0 40px rgba(202, 162, 61, 0.4);
+    }
+    .load-sub {
+      font-size: 11px; color: var(--accent); font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .14em; text-transform: uppercase; margin-bottom: 32px;
+    }
+    .load-bar-wrap {
+      width: 200px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 14px;
+    }
+    .load-bar {
+      height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 8px var(--accent-glow); transition: width .3s ease;
+    }
+    .load-status { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══ HEADER ══ */
+    #header {
+      position: absolute; top: 18px; left: 18px; z-index: 40;
+      background: rgba(3, 15, 30, 0.85); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 50px;
+      padding: 8px 24px 8px 12px; display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--shadow); opacity: 0; animation: fadeUp .5s ease .3s forwards;
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .logo-wrapper {
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; padding: 4px 8px; border-radius: 20px;
+    }
+    .brand-logo { height: 28px; width: auto; object-fit: contain; }
+    
+    .header-text { display: flex; flex-direction: column; }
+    #header h1 { font-size: 14px; font-weight: 800; letter-spacing: .05em; color: var(--text); }
+    #header span { font-size: 10px; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    
+    .drawer-trigger {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--accent);
+      width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px;
+    }
+    .drawer-trigger:hover { background: var(--accent); color: var(--bg); }
+
+    /* ══ CONTROLS ══ */
+    #controls {
+      position: absolute; top: 18px; right: 18px; z-index: 40;
+      display: flex; gap: 8px; opacity: 0; animation: fadeIn .5s ease .5s forwards;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .ctrl-group {
+      background: rgba(3, 15, 30, 0.88); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      overflow: hidden; display: flex; box-shadow: var(--shadow);
+    }
+    .ctrl-btn {
+      width: 40px; height: 40px; background: transparent; border: none;
+      border-right: 1px solid var(--border); color: var(--text-dim);
+      font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; font-family: 'Syne', sans-serif; font-weight: 600; position: relative;
+    }
+    .ctrl-btn:last-child { border-right: none; }
+    .ctrl-btn:hover { background: rgba(202, 162, 61, 0.15); color: var(--accent2); }
+
+    /* ══ SIDE LIST DRAWER SYSTEM ══ */
+    #side-drawer {
+      position: absolute; left: -320px; top: 0; bottom: 0; width: 300px;
+      z-index: 50; background: var(--surface); border-right: 1px solid var(--border);
+      box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #side-drawer.open { transform: translateX(320px); }
+    
+    .drawer-header {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .drawer-header h2 { font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+    .drawer-close {
+      background: transparent; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer;
+    }
+    
+    /* Search Bar Feature */
+    .search-box-container { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .search-input {
+      width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px;
+    }
+    .search-input:focus { border-color: var(--accent); outline: none; }
+
+    .legend-scroll { overflow-y: auto; flex: 1; padding: 10px 0; }
+    .legend-scroll::-webkit-scrollbar { width: 4px; }
+    .legend-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    
+    .legend-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+      font-size: 12px; cursor: pointer; transition: all .15s; color: var(--text-dim);
+    }
+    .legend-item:hover { background: rgba(202, 162, 61, 0.08); color: var(--text); }
+    .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+
+    /* ══ POPUP WINDOW / DETAILS DRAWER ══ */
+    #popup {
+      position: absolute; z-index: 45; bottom: 24px; right: 24px;
+      width: 330px; background: var(--surface); border: 1px solid var(--border-glow);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg);
+      display: none; flex-direction: column;
+      animation: slideIn .3s cubic-bezier(.16,1,.3,1);
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+    #popup .pop-img { width: 100%; height: 150px; object-fit: cover; display: block; }
+    #popup .pop-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+    #popup .pop-name { font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: .02em; }
+    #popup .pop-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 4px; }
+    
+    /* Structured Metadata Grid Fields */
+    .metadata-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 4px;
+    }
+    .meta-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 10px;
+    }
+    .meta-card .meta-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .meta-card .meta-val { font-size: 11px; font-weight: 700; color: var(--accent2); margin-top: 2px; line-height: 1.3; }
+    .meta-card.full-width { grid-column: span 2; }
+
+    #popup .pop-close {
+      position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(3, 15, 30, 0.75); backdrop-filter: blur(8px); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    
+    /* Navigation and Action Buttons */
+    .action-row { display: flex; gap: 8px; margin-top: 10px; }
+    .action-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 0; border: none; border-radius: 8px; font-size: 12px; font-weight: 700;
+      font-family: 'Syne', sans-serif; cursor: pointer; transition: all .15s;
+    }
+    .btn-fly { background: linear-gradient(135deg, var(--accent) 0%, #a07a23 100%); color: var(--bg); }
+    .btn-fly:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-web { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    .btn-web:hover { background: var(--border); color: var(--accent2); }
+
+    #hover-tip {
+      position: absolute; z-index: 60; pointer-events: none;
+      background: rgba(3, 15, 30, 0.95); border: 1px solid var(--border-glow);
+      border-radius: 10px; overflow: hidden; display: none; width: 180px; box-shadow: var(--shadow);
+    }
+    #hover-tip .tip-body { padding: 8px 12px; }
+    #hover-tip .tip-name { font-size: 11px; font-weight: 700; color: var(--text); }
+
+    #coord-hud {
+      position: absolute; bottom: 24px; left: 24px; z-index: 40;
+      background: rgba(3, 15, 30, 0.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px;
+      font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--muted);
+    }
+    #coord-hud span { color: var(--text-dim); }
+
+    /* ══ RESPONSIVE MOBILE TRANSFORMS ══ */
+    @media (max-width: 768px) {
+      #map {
+        position: relative;
+        height: 50vh; /* Map constraints so it divides viewport layout cleanly */
+        width: 100%;
+      }
+      
+      #header { top: 10px; left: 10px; right: 10px; padding: 6px 14px 6px 8px; }
+      #controls { top: auto; bottom: calc(50vh + 12px); right: 10px; }
+      #coord-hud { display: none; }
+
+      #side-drawer { width: 85%; max-width: 280px; left: -300px; }
+      #side-drawer.open { transform: translateX(300px); }
+
+      #popup {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        height: 50vh !important;
+        border-radius: 0;
+        border: none;
+        border-top: 2px solid var(--border-glow);
+        background: var(--bg);
+        overflow-y: auto;
+        display: none;
+      }
+      #popup .pop-img { height: 140px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="load-logo-container">
+    <div class="load-logo-ring"></div>
+    <img src="assets/Logo-hue.png" class="load-brand-img" alt="Horus University Logo" />
+  </div>
+  <div class="load-title">Horus University</div>
+  <div class="load-sub">Campus Smart Ecosystem</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div class="load-status" id="load-status">Synchronizing Geometries…</div>
+</div>
+
+<div id="app-shell">
+  <div id="map"></div>
+
+  <div id="header">
+    <button class="drawer-trigger" id="drawer-open-btn" title="Open Building Directory">☰</button>
+    <div class="logo-wrapper">
+      <img src="assets/Logo-hue.png" class="brand-logo" alt="HUE Logo" />
+    </div>
+    <div class="header-text">
+      <h1>Horus University</h1>
+      <span>Interactive Navigator</span>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btn-3d">2D</button>
+      <button class="ctrl-btn" id="btn-reset">⌖</button>
+    </div>
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btn-zoomin">+</button>
+      <button class="ctrl-btn" id="btn-zoomout">−</button>
+    </div>
+  </div>
+
+  <div id="side-drawer">
+    <div class="drawer-header">
+      <h2>Campus Directory</h2>
+      <button class="drawer-close" id="drawer-close-btn">✕</button>
+    </div>
+    <div class="search-box-container">
+      <input type="text" id="search-input" class="search-input" placeholder="Search structures, faculties..." />
+    </div>
+    <div class="legend-scroll">
+      <div id="legend-items"></div>
+    </div>
+  </div>
+
+  <div id="coord-hud">
+    LAT <span id="hud-lat">31.4490</span> &nbsp; LNG <span id="hud-lng">31.6572</span>
+  </div>
+
+  <div id="hover-tip">
+    <div class="tip-body">
+      <div class="tip-name" id="ht-name"></div>
+    </div>
+  </div>
+
+  <div id="popup">
+    <button class="pop-close" id="pop-close">✕</button>
+    <img class="pop-img" id="pop-img" src="" alt="Building Image" />
+    <div class="pop-body">
+      <div class="pop-name" id="pop-name"></div>
+      <div class="pop-desc" id="pop-desc"></div>
+      
+      <div class="metadata-grid">
+        <div class="meta-card">
+          <div class="meta-lbl">Structural Height</div>
+          <div class="meta-val" id="pop-height"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Floor Levels</div>
+          <div class="meta-val" id="pop-floors"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Established Date</div>
+          <div class="meta-val" id="pop-est"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Daily Max Capacity</div>
+          <div class="meta-val" id="pop-capacity"></div>
+        </div>
+        <div class="meta-card full-width">
+          <div class="meta-lbl">Key Departments & Specializations</div>
+          <div class="meta-val" id="pop-depts"></div>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="action-btn btn-fly" id="pop-fly-btn">✈ Orbit Focus</button>
+        <button class="action-btn btn-web" id="pop-web-btn">🌐 View Website</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+
+// Complete, Integrated, Non-duplicated Dataset (Faculties, Infrastructure, Gates, and Cafes)
+const BUILDINGS = [
+  { id:"faculty-of-engineering",            name:"Faculty of Engineering",            height:16, color:"#caa23d", roofColor:"#112643", type:"Academic",  image:"assets/eng.png",                         desc:"Advanced Engineering spaces, high-computing laboratories, and research workshops.", link:"https://eng.horus.edu.eg/", established:"2018", capacity:"+6,000 Students", depts:"Artificial Intelligence, Civil Engineering, Electrical Engineering, Biomedical Engineering, Architecture Engineering, Computer & Systems Engineering, Sustainable Architecture Engineering, Mechanical Engineering (Mechatronics)" },
+  { id:"faculty-of-medicine",               name:"Faculty of Medicine",               height:16, color:"#1a5f7a", roofColor:"#0a1b30", type:"Medical",   image:"assets/med.jpg",                         desc:"Medical educational frameworks, anatomy visualization centers, and direct clinical tracks.", link:"https://med.horus.edu.eg/", established:"2021", capacity:"+3,000 Students", depts:"Human Anatomy and Embryology, Histology and Cell biology, Medical Physiology, Clinical Pharmacology, Medical Biochemistry and Molecular Biology, Pathology, Medical Microbiology and Immunology and Parasitology" },
+  { id:"faculty-of-applied-medicine",       name:"Faculty of Applied Health Sciences",height:16, color:"#2b6cb0", roofColor:"#112643", type:"Medical",   image:"assets/applied-medicin.jpg",             desc:"Allied healthcare tracking, laboratory analysis hubs, and diagnostic learning paradigms.", link:"https://ahst.horus.edu.eg/", established:"2024", capacity:"+ 1,500 Students", depts:"Medical Laboratory Technology, Radiology and Medical Imaging Technology, Respiratory Care Technology, Dental Prosthetics Technology, Health Informatics and Management Technology" },
+  { id:"faculty-of-physical-therapy",       name:"Faculty of Physical Therapy",       height:16, color:"#319795", roofColor:"#0a1b30", type:"Medical",   image:"assets/phthy.jpg",                       desc:"Rehabilitation sciences complexes, biomechanics arrays, and out-patient wellness systems.", link:"https://phth.horus.edu.eg/", established:"2017", capacity:"+3,000 Students", depts:"Basic Science, Biomechanics, PT for Internal Medicine & Geriatrics, PT for Women’s Health, PT for Surgery & Integumentary, PT for Orthopaedic Surgery, PT for Neurology & Neurosurgery, Pediatric Physical Therapy" },
+  { id:"faculty-of-pharmacy",               name:"Faculty of Pharmacy",               height:16, color:"#2c5282", roofColor:"#112643", type:"Medical",   image:"assets/pharmacy.jpg",                    desc:"Pharmaceutical design architecture, research pharmacology pipelines, and chemistry arrays.", link:"https://pharm.horus.edu.eg/", established:"2016", capacity:"+3,000 Students", depts:"Pharmaceutics, Clinical Pharmacy, Pharmacognosy" },
+  { id:"faculty-of-artificial-intelligence",name:"Faculty of Artificial Intelligence",height:16, color:"#ff6b6b", roofColor:"#3a0000", type:"Academic",  image:"assets/ai.jpg",                          desc:"Next-gen AI incubation nodes, machine learning modules, robotics engineering centers.", link:"https://ai.horus.edu.eg/", established:"2022", capacity:"+1,500 Students", depts:"Artificial Intelligence for Robotics, Intelligent Systems, Intelligent Biomedical Computation, Intelligent Data Science, Intelligent Cyber-Security" },
+  { id:"Clinic-H-building",                 name:"Clinic H Building",                 height:16, color:"#4a5568", roofColor:"#1a202c", type:"Clinic",    image:"assets/clinics.jpg",                     desc:"Specialist student and public healthcare operations and diagnostic emergency facilities.", link:"https://www.horus.edu.eg", established:"2022", capacity:"+200 Visitors/Day", depts:"Outpatient Treatment, General Medicine" },
+  { id:"faculty-of-fine-arts",              name:"Faculty of Fine Arts & Design",     height:16, color:"#b7791f", roofColor:"#112643", type:"Academic",  image:"assets/fine-arts.jpg",                   desc:"Visual arts, internal interior architecture parameters, and multimedia rendering arrays.", link:"https://fa.horus.edu.eg/", established:"2024", capacity:"+1,000 Students", depts:"Interior Architecture and Design, Graphics and Media Arts, Animation Design and Multimedia, Furniture Design and Production Technology" },
+  { id:"faculty-of-alsun",                  name:"Faculty of Al-Alsun & translation", height:16, color:"#4c51bf", roofColor:"#0a1b30", type:"Academic",  image:"assets/alsun.jpg",                       desc:"Linguistics laboratories, multi-lingual interpretation setups, global cross-cultural tracks.", link:"https://at.horus.edu.eg/", established:"2024", capacity:"1,000 Students", depts:"English Language Programme, German Language Programme,  Chinese Language Programme" },
+  { id:"faculty-of-business-administrator", name:"Faculty of Business Administration",height:16, color:"#285e61", roofColor:"#112643", type:"Academic",  image:"assets/business.jpg",                    desc:"Economic strategy modeling suites, fintech sandboxes, and modern management simulations.", link:"https://bus.horus.edu.eg/", established:"2018", capacity:"+1,700 Students", depts:"Accounting, Marketing, Business Administration, Finance and Investment, Human Resources, Economics" },
+  { id:"hall-a",                            name:"Hall A Grand Auditorium",           height:11, color:"#9b2c2c", roofColor:"#3a0000", type:"Venue",     image:"assets/halla.png",                       desc:"High-capacity symposium theatre with spatial acoustic modeling for formal university events.", link:"https://www.horus.edu.eg", established:"2017", capacity:"1,600 Spectators", depts:"Conferences, Cultural Conventions, Graduation Events" },
+  { id:"faculty-of-dentistry",              name:"Faculty of Dentistry",              height:16, color:"#dd6b20", roofColor:"#0a1b30", type:"Medical",   image:"assets/dentistry.jpg",                   desc:"Oral health medicine fields, phantom head simulators, surgical testing centers.", link:"https://dent.horus.edu.eg/", established:"2016", capacity:"+2,000 Students", depts:"General & Basic Dental Science, Basic & Clinical Medical Sciences, Oral & Maxillofacial Surgery, Orthodontics, Periodontology & Oral Medicine, Prosthodontics, Restorative Dentistry" },
+  { id:"faculty-of-dentistry-clinics",      name:"Dentistry Clinics Block",           height:16, color:"#e2e8f0", roofColor:"#718096", type:"Clinic",    image:"assets/dent-clinc.jpeg",                 desc:"Public dental treatment suites and student practical training environments.", link:"https://www.horus.edu.eg", established:"2018", capacity:"1,500 Outpatients", depts:"Maxillofacial Care, Pedodontics, Dental Imaging Room" },
+  { id:"players",                           name:"Sports Complex Arena",              height:3,  color:"#38a169", roofColor:"#276749", type:"Sports",    image:"assets/sports.jpg",                      desc:"Multipurpose open stadium structures, tracks, and physical conditioning fitness options.", link:"https://www.horus.edu.eg", established:"2018", capacity:"3,000 Athletes", depts:"Football Pitch, Basketball Courts, Athletics Track" },
+  { id:"evoria-library",                    name:"Evoria Central Library",            height:3,  color:"#2c5282", roofColor:"#0a1b30", type:"Library",   image:"https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=500&auto=format&fit=crop", desc:"Multilevel literature hub containing specialized digital parsing points and research repositories.", link:"https://wa.me/+201012660345", established:"2021", capacity:"2000 paper/min", depts:"Printing & Stationery Services" },
+  { id:"administrat-zone",                  name:"Central Administration Zone",       height:4,  color:"#1a202c", roofColor:"#112643", type:"Admin",     image:"https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop", desc:"Executive leadership administrative offices, admissions, and registrars.", link:"https://www.horus.edu.eg", established:"2016", capacity:"400 Staff Nodes", depts:"Presidential Office, Admission Office, Student Affairs" },
+  { id:"gate-b",                            name:"Gate B",                            height:8,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"assets/gateb.jpg",                       desc:"Secondary campus entrance with security checkpoints.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Check-Point", depts:"Security Operations, Logistics Management" },
+  { id:"gate-a",                            name:"Main Gate A",                       height:8,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"assets/gate-a.jpg",                      desc:"Main campus entrance and visitor reception processing.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Main Entrance", depts:"Main Security Hub, Guest Relations" },
+  { id:"gate-c",                            name:"Gate C",                            height:6,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"https://placehold.co/600x350/4a5568/ffffff?text=Gate+C",                          desc:"East campus gate access point.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Check-Point", depts:"Auxiliary Entry Security" },
+  { id:"vanshy-cafee",                      name:"Vanshy Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/718096/111111?text=Vanshy+Cafe",                     desc:"Student lounge cafe near main academic quad grids.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"abutym-cafee",                      name:"Abutym Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/718096/111111?text=Abutym+Cafe",                     desc:"Quick service snack and drink depot for students.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"trend-cafee",                       name:"Trend Cafe",                        height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/d69e2e/ffffff?text=Trend+Cafe",                      desc:"Popular central student social meeting hub.", link:"https://www.horus.edu.eg", established:"2020", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"cheili-cafee",                      name:"Cheili Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/d69e2e/ffffff?text=Cheili+Cafe",                     desc:"Cosy relaxation corner adjacent to medical facilities.", link:"https://www.horus.edu.eg", established:"2021", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"clinic-cafee",                      name:"Dentistry Cafe Lounge",             height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/a0aec0/111111?text=Clinic+Cafe+Lounge",             desc:"Lounge zone adjacent directly to the clinic facility structures.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" }
+];
+
+const CAMPUS_CENTER = [31.6572, 31.4490];
+const buildingMap = {};
+BUILDINGS.forEach((b, i) => { buildingMap[b.id] = { ...b, featureIndex: i }; });
+
+// Geofenced Spatial Poly Boundaries Map
+const COORDS = {
+  "faculty-of-engineering":            [[[31.655459,31.449984],[31.6558887,31.4500811],[31.6560652,31.4494841],[31.6556375,31.4493932],[31.6556071,31.449487],[31.6555817,31.4495779],[31.6558036,31.4496165],[31.6557478,31.4498283],[31.6552276,31.4497812],[31.655464,31.4499753],[31.655459,31.449984]]],
+  "faculty-of-medicine":               [[[31.65599,31.4492501],[31.6565048,31.449352],[31.6566765,31.4487788],[31.6564523,31.4487303],[31.6563417,31.449119],[31.6560616,31.449062],[31.65599,31.4492501]]],
+  "faculty-of-applied-medicine":       [[[31.6559404,31.4490368],[31.6557441,31.4490004],[31.6559073,31.4484272],[31.6563924,31.4485306],[31.6563483,31.4486999],[31.6560561,31.4486388],[31.6559404,31.4490368]]],
+  "faculty-of-physical-therapy":       [[[31.6562064,31.4481843],[31.6559988,31.4481475],[31.656155,31.4475705],[31.6566689,31.4476775],[31.6566216,31.4478599],[31.6563195,31.4477985],[31.6562064,31.448186]]],
+  "faculty-of-pharmacy":               [[[31.6563115,31.448225],[31.6567975,31.4483108],[31.6569679,31.447743],[31.6567694,31.4477],[31.6566534,31.448107],[31.6563652,31.4480405],[31.6563126,31.4482243]]],
+  "faculty-of-artificial-intelligence":[[[31.6578196,31.4504553],[31.658643,31.4506239],[31.658705,31.4504457],[31.6578748,31.4502754],[31.6578195,31.4504551],[31.6578196,31.4504553]]],
+  "Clinic-H-building":                 [[[31.6587048,31.4504457],[31.658488,31.450401],[31.6585899,31.450057],[31.6587964,31.4501074],[31.658705,31.4504457]]],
+  "faculty-of-fine-arts":              [[[31.6579712,31.4499146],[31.6587985,31.4501068],[31.658849,31.4499254],[31.658027,31.4497367],[31.6579712,31.4499146]]],
+  "faculty-of-alsun":                  [[[31.6582405,31.4490133],[31.6580843,31.4495679],[31.6585829,31.4496831],[31.6586412,31.4495033],[31.6583594,31.4494395],[31.6584775,31.4490478],[31.65825,31.4489982],[31.6582405,31.4490133]]],
+  "faculty-of-business-administrator": [[[31.6587503,31.4495298],[31.6589563,31.4495702],[31.6591312,31.4490036],[31.658635,31.4488852],[31.6585755,31.4490777],[31.6588603,31.4491331],[31.6587477,31.4495296],[31.6587503,31.4495298]]],
+  "hall-a":                            [[[31.6589201,31.4488698],[31.6589727,31.4486625],[31.6591686,31.4487001],[31.6591137,31.448909],[31.6589203,31.448868],[31.6589201,31.4488698]]],
+  "faculty-of-dentistry":              [[[31.6587022,31.4481115],[31.6585101,31.4480741],[31.6583436,31.4486452],[31.6588248,31.4487414],[31.6588775,31.4485847],[31.6585833,31.4485161],[31.6587022,31.4481115]]],
+  "faculty-of-dentistry-clinics":      [[[31.6592156,31.4486133],[31.6593176,31.4482383],[31.6588316,31.4481278],[31.6587655,31.4483119],[31.6590562,31.4483676],[31.6590023,31.448557],[31.6592179,31.4486157],[31.6592156,31.4486133]]],
+  "players":                           [[[31.65759309121302,31.44954907871262],[31.6574855,31.4499455],[31.6567311,31.449788],[31.656858,31.4493907],[31.65759309121302,31.44954907871262]]],
+  "evoria-library":                    [[[31.65600304828087,31.450227551244822],[31.65599562210338,31.45025668667111],[31.65589948321065,31.450235116274],[31.65590685588936,31.4502061907352],[31.65600304828087,31.450227551244822]]],
+  "administrat-zone":                  [[[31.65850597118879,31.45006962900713],[31.65843414730122,31.45035141871365],[31.65784024996589,31.45023751692243],[31.65791077718612,31.44996081415225],[31.65850597118879,31.45006962900713]]],
+  
+  /* Added Missing Gate & Cafe Spatial Boundaries Linked to Object Schemas */
+  "gate-b":                            [[[31.6571519,31.4504897],[31.6571287,31.4505599],[31.65678457067986,31.45048505739345],[31.6568035,31.4504109],[31.6571519,31.4504897]]],
+  "gate-a":                            [[[31.65793309445738,31.44777866773491],[31.65791310376423,31.447857100073236],[31.6575551,31.447775],[31.6575763,31.4477053],[31.65793309445738,31.44777866773491]]],
+  "gate-c":                            [[[31.65957730632175,31.44803545557822],[31.65955859115897,31.448108883248793],[31.6595121114706,31.448101549319574],[31.65953074912963,31.448028425729902],[31.65957730632175,31.44803545557822]]],
+  "vanshy-cafee":                      [[[31.65610932219553,31.45020182897045],[31.6560991240153,31.450241839920494],[31.65601745669787,31.45022374764247],[31.65602759294893,31.45018397965421],[31.65610932219553,31.45020182897045]]],
+  "abutym-cafee":                      [[[31.65622252821746,31.45022229364999],[31.65621258780811,31.45026129326507],[31.65611177210349,31.4502390011734],[31.65622252821746,31.45022229364999]]],
+  "trend-cafee":                       [[[31.65569974493161,31.44917870104416],[31.65567674230056,31.449268949191392],[31.65560916984177,31.44925739205391],[31.65563208811057,31.44916747487599],[31.65569974493161,31.44917870104416]]],
+  "cheili-cafee":                      [[[31.6560019742042,31.44817972820593],[31.65597807346279,31.44827350098463],[31.65587294922494,31.44825532751356],[31.6558967134128,31.44816209047465],[31.6560019742042,31.44817972820593]]],
+  "clinic-cafee":                      [[[31.65915111111596,31.44864293514048],[31.65914352752327,31.44867268866499],[31.65893425494653,31.4486377721537],[31.65894174979943,31.44860836678062],[31.65915111111596,31.44864293514048]]]
+};
+
+const GEOJSON = {
+  type:"FeatureCollection",
+  features: BUILDINGS.map((b, idx) => ({
+    type:"Feature", id: idx,
+    properties:{ name:b.name, height:b.height, minHeight:0, color:b.color, roofColor:b.roofColor },
+    geometry:{ type:"Polygon", coordinates: COORDS[b.id] }
+  }))
+};
+
+let is3D = true;
+let activeBuildingId = null;
+let orbitAnimFrame = null;
+let orbitActive = false;
+let currentPopupId = null;
+let currentLinkTarget = "https://www.horus.edu.eg";
+
+function getCentroid(coords) {
+  let lngSum=0, latSum=0;
+  coords.forEach(([lng,lat]) => { lngSum+=lng; latSum+=lat; });
+  return [lngSum/coords.length, latSum/coords.length];
+}
+
+function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+function easeOutBack(t)   { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+function easeOutCubic(t)  { return 1 - Math.pow(1-t, 3); }
+function easeInCubic(t)   { return t*t*t; }
+
+function buildFeatures(heightMap) {
+  return BUILDINGS.map((bl, idx) => ({
+    type:'Feature', id:idx,
+    properties:{
+      name:bl.name,
+      height: heightMap[bl.id] !== undefined ? Math.max(0, heightMap[bl.id]) : bl.height,
+      minHeight:0, color:bl.color, roofColor:bl.roofColor
+    },
+    geometry:{ type:'Polygon', coordinates:COORDS[bl.id] }
+  }));
+}
+
+function setSpotlight(map, targetId) {
+  if (targetId) {
+    const idx = buildingMap[targetId].featureIndex;
+    map.setPaintProperty('bldg-walls','fill-extrusion-color', ['case',['==',['id'],idx],['get','color'],'#0a1b30']);
+    map.setPaintProperty('bldg-walls','fill-extrusion-opacity', ['case',['==',['id'],idx],0.95,0.15]);
+    map.setPaintProperty('bldg-roof','fill-extrusion-color', ['case',['==',['id'],idx],['get','roofColor'],'#030f1e']);
+  } else {
+    map.setPaintProperty('bldg-walls','fill-extrusion-color',['get','color']);
+    map.setPaintProperty('bldg-walls','fill-extrusion-opacity',0.92);
+    map.setPaintProperty('bldg-roof','fill-extrusion-color',['get','roofColor']);
+  }
+}
+
+function stopOrbit() {
+  orbitActive = false;
+  if (orbitAnimFrame) { cancelAnimationFrame(orbitAnimFrame); orbitAnimFrame = null; }
+}
+
+function startOrbit(map, lng, lat) {
+  stopOrbit();
+  orbitActive = true;
+  const durationMs = 12000, totalDeg = 360;
+  const startBearing = map.getBearing();
+  let startTime = null;
+  function step(ts) {
+    if (!orbitActive) return;
+    if (!startTime) startTime = ts;
+    const t = Math.min((ts-startTime)/durationMs, 1);
+    map.jumpTo({ bearing: startBearing + totalDeg * easeInOutCubic(t), center:[lng,lat] });
+    if (t < 1) orbitAnimFrame = requestAnimationFrame(step);
+    else orbitActive = false;
+  }
+  orbitAnimFrame = requestAnimationFrame(step);
+}
+
+let riseAnimFrame = null;
+function stopRise() { if (riseAnimFrame) { cancelAnimationFrame(riseAnimFrame); riseAnimFrame = null; } }
+
+function startFlyRise(map, id) {
+  stopRise();
+  const b = buildingMap[id];
+  const targetH = b.height;
+  const SINK_MS = 1000, COLLAPSE_MS = 400, RISE_MS = 1400;
+  const startHeights = {};
+  BUILDINGS.forEach(bl => { startHeights[bl.id] = bl.height; });
+
+  let phase = 'sink';
+  let phaseStart = null;
+
+  function tick(ts) {
+    if (!phaseStart) phaseStart = ts;
+    const elapsed = ts - phaseStart;
+    let heightMap = {};
+
+    if (phase === 'sink') {
+      const t = Math.min(elapsed / SINK_MS, 1);
+      BUILDINGS.forEach(bl => {
+        if (bl.id === id) heightMap[bl.id] = targetH;
+        else heightMap[bl.id] = startHeights[bl.id] * (1 - easeOutCubic(t));
+      });
+      if (t >= 1) { phase = 'collapse'; phaseStart = ts; }
+    } else if (phase === 'collapse') {
+      const t = Math.min(elapsed / COLLAPSE_MS, 1);
+      BUILDINGS.forEach(bl => { heightMap[bl.id] = bl.id === id ? targetH * (1 - easeInCubic(t)) : 0; });
+      if (t >= 1) { phase = 'rise'; phaseStart = ts; }
+    } else {
+      const t = Math.min(elapsed / RISE_MS, 1);
+      BUILDINGS.forEach(bl => { heightMap[bl.id] = bl.id === id ? targetH * easeOutBack(t) : 0; });
+      if (t >= 1) {
+        map.getSource('campus').setData({ type:'FeatureCollection', features: buildFeatures({ [id]: targetH, ...Object.fromEntries(BUILDINGS.filter(bl=>bl.id!==id).map(bl=>[bl.id,0])) }) });
+        startOrbit(map, ...getCentroid(COORDS[id][0]));
+        return;
+      }
+    }
+    map.getSource('campus').setData({ type:'FeatureCollection', features: buildFeatures(heightMap) });
+    riseAnimFrame = requestAnimationFrame(tick);
+  }
+  riseAnimFrame = requestAnimationFrame(tick);
+}
+
+function flyTo(map, id) {
+  const b = buildingMap[id];
+  if (!b) return;
+  stopOrbit();
+  stopRise();
+  activeBuildingId = id;
+  const [lng, lat] = getCentroid(COORDS[id][0]);
+  const optimizedZoom = window.innerWidth <= 768 ? 17.5 : 18.2;
+
+  map.flyTo({
+    center:[lng, lat], zoom: optimizedZoom, pitch:65,
+    bearing: map.getBearing() + 45, duration:2400, easing: easeInOutCubic
+  });
+
+  map.once('moveend', () => {
+    if (activeBuildingId !== id) return;
+    setSpotlight(map, id);
+    startFlyRise(map, id);
+  });
+}
+
+function resetView(map) {
+  stopOrbit(); stopRise();
+  activeBuildingId = null; currentPopupId = null;
+  setSpotlight(map, null);
+  map.getSource('campus').setData(GEOJSON);
+  map.flyTo({ center:CAMPUS_CENTER, zoom: window.innerWidth <= 768 ? 15.8 : 16.5, pitch:50, bearing:-20, duration:1400 });
+}
+
+function showPopup(b) {
+  currentPopupId = b.id;
+  currentLinkTarget = b.link || "https://www.horus.edu.eg";
+  
+  document.getElementById('pop-img').src = b.image;
+  document.getElementById('pop-name').textContent = b.name;
+  document.getElementById('pop-desc').textContent = b.desc;
+  document.getElementById('pop-height').textContent = b.height + " meters";
+  document.getElementById('pop-floors').textContent = Math.round(b.height / 4);
+  document.getElementById('pop-est').textContent = b.established || "N/A";
+  document.getElementById('pop-capacity').textContent = b.capacity || "N/A";
+  document.getElementById('pop-depts').textContent = b.depts || "General Campus Access Infrastructure Point";
+
+  document.getElementById('popup').style.display = 'flex';
+}
+
+function renderDirectoryList(map, items) {
+  const legendEl = document.getElementById('legend-items');
+  legendEl.innerHTML = '';
+  items.forEach(b => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="swatch" style="background:${b.color}"></div><span>${b.name}</span>`;
+    item.addEventListener('click', () => { 
+      flyTo(map, b.id); 
+      showPopup(b); 
+      if(window.innerWidth <= 768) {
+        document.getElementById('side-drawer').classList.remove('open');
+      }
+    });
+    legendEl.appendChild(item);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const map = new maplibregl.Map({
+    container:'map',
+    style:{
+      version:8,
+      glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      sources:{ osm:{ type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256, attribution:'© Horus University Maps' } },
+      layers:[
+        { id:'bg', type:'background', paint:{'background-color':'#030f1e'} },
+        { id:'tiles', type:'raster', source:'osm', paint:{'raster-opacity':0.4,'raster-saturation':-0.3,'raster-brightness-min':0.1} }
+      ]
+    },
+    minZoom:14, maxZoom:19,
+    center:CAMPUS_CENTER, zoom:16.5, pitch:50, bearing:-20, antialias:true
+  });
+
+  const WORLD_MASK = {
+    type:"FeatureCollection",
+    features:[{ type:"Feature", properties:{}, geometry:{ type:"Polygon", coordinates:[
+      [[-180,-90],[180,-90],[180,90],[-180,90],[-180,-90]],
+      [[31.658771,31.4512259],[31.6549304,31.450346],[31.6560799,31.446708],[31.6597999,31.4474533],[31.658771,31.4512259]]
+    ]}}]
+  };
+
+  map.on('load', () => {
+    const loadBar = document.getElementById('load-bar');
+    const loadStatus = document.getElementById('load-status');
+    const steps = [
+      [20, 'Configuring HUE Vector Space…'],
+      [50, 'Projecting Structural Elements…'],
+      [85, 'Finalizing Texture Assemblies…'],
+      [100, 'System Operational']
+    ];
+    let stepIdx = 0;
+    const progressTimer = setInterval(() => {
+      if (stepIdx < steps.length) {
+        loadBar.style.width = steps[stepIdx][0] + '%';
+        loadStatus.textContent = steps[stepIdx][1];
+        stepIdx++;
+      } else {
+        clearInterval(progressTimer);
+        setTimeout(() => {
+          document.getElementById('loading').classList.add('fade-out');
+        }, 300);
+      }
+    }, 150);
+
+    map.addSource('world-mask', { type:'geojson', data:WORLD_MASK });
+    map.addLayer({ id:'outside-mask', type:'fill', source:'world-mask', paint:{ 'fill-color':'#030f1e', 'fill-opacity':0.9 } });
+
+    map.addSource('campus', { type:'geojson', data:GEOJSON });
+
+    map.addLayer({ id:'bldg-walls', type:'fill-extrusion', source:'campus', paint:{
+      'fill-extrusion-color':['get','color'],
+      'fill-extrusion-height':['get','height'],
+      'fill-extrusion-base':['get','minHeight'],
+      'fill-extrusion-opacity':0.9,
+      'fill-extrusion-vertical-gradient':true
+    }});
+
+    map.addLayer({ id:'bldg-roof', type:'fill-extrusion', source:'campus', paint:{
+      'fill-extrusion-color':['get','roofColor'],
+      'fill-extrusion-height':['+',['get','height'],0.4],
+      'fill-extrusion-base':['get','height'],
+      'fill-extrusion-opacity':1
+    }});
+
+    map.addLayer({ id:'bldg-labels', type:'symbol', source:'campus', layout:{
+      'text-field':['get','name'],'text-font':['Noto Sans Regular'],
+      'text-size':11,'text-anchor':'center','text-allow-overlap':false
+    }, paint:{ 'text-color':'#e2ecf5','text-halo-color':'#030f1e','text-halo-width':2 }});
+
+    renderDirectoryList(map, BUILDINGS);
+
+    // Search Engine Filter
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      const matching = BUILDINGS.filter(b => b.name.toLowerCase().includes(term) || b.depts.toLowerCase().includes(term));
+      renderDirectoryList(map, matching);
+    });
+
+    map.on('move', () => {
+      const center = map.getCenter();
+      document.getElementById('hud-lat').textContent = center.lat.toFixed(4);
+      document.getElementById('hud-lng').textContent = center.lng.toFixed(4);
+    });
+
+    const hoverTip = document.getElementById('hover-tip');
+    ['bldg-walls','bldg-roof'].forEach(layer => {
+      map.on('mousemove', layer, e => {
+        map.getCanvas().style.cursor = 'pointer';
+        const b = BUILDINGS[e.features[0].id];
+        if (!b) return;
+        document.getElementById('ht-name').textContent = b.name;
+        hoverTip.style.display = 'block';
+        hoverTip.style.left = (e.point.x + 12) + 'px';
+        hoverTip.style.top = (e.point.y - 45) + 'px';
+      });
+
+      map.on('mouseleave', layer, () => {
+        map.getCanvas().style.cursor = '';
+        hoverTip.style.display = 'none';
+      });
+
+      map.on('click', layer, e => {
+        const b = BUILDINGS[e.features[0].id];
+        if (b) { flyTo(map, b.id); showPopup(b); }
+      });
+    });
+
+    document.getElementById('drawer-open-btn').addEventListener('click', () => {
+      document.getElementById('side-drawer').classList.add('open');
+    });
+    document.getElementById('drawer-close-btn').addEventListener('click', () => {
+      document.getElementById('side-drawer').classList.remove('open');
+    });
+    document.getElementById('pop-close').addEventListener('click', () => {
+      document.getElementById('popup').style.display = 'none';
+      resetView(map);
+    });
+    document.getElementById('pop-fly-btn').addEventListener('click', () => {
+      if (currentPopupId) flyTo(map, currentPopupId);
+    });
+    document.getElementById('pop-web-btn').addEventListener('click', () => {
+      window.open(currentLinkTarget, '_blank');
+    });
+
+    document.getElementById('btn-3d').addEventListener('click', () => {
+      is3D = !is3D;
+      map.easeTo({ pitch: is3D ? 50 : 0, bearing: is3D ? -20 : 0, duration: 600 });
+      document.getElementById('btn-3d').textContent = is3D ? '2D' : '3D';
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      document.getElementById('popup').style.display = 'none';
+      resetView(map);
+    });
+    document.getElementById('btn-zoomin').addEventListener('click', () => map.zoomIn());
+    document.getElementById('btn-zoomout').addEventListener('click', () => map.zoomOut());
+  });
+});
+</script>
+</body>
+</html>

@@ -127,7 +127,17 @@
       animation: blinkCursor .8s step-end infinite;
     }
     @keyframes blinkCursor { 50% { opacity: 0; } }
-    #welcome-overlay .welcome-sub {
+    #welcome-overlay .welcome-crumb {
+      font-family: 'JetBrains Mono', monospace; font-weight: 500;
+      font-size: clamp(11px, 1.3vw, 15px);
+      letter-spacing: .08em;
+      color: var(--accent2);
+      min-height: 1.4em;
+      margin-bottom: 10px;
+      text-align: center;
+      max-width: 60vw;
+    }
+    #welcome-overlay .welcome-crumb:empty { margin-bottom: 0; }
       margin-top: 16px;
       font-family: 'JetBrains Mono', monospace; font-weight: 500;
       font-size: clamp(10px, 1.2vw, 13px);
@@ -153,6 +163,18 @@
       0% { background-position: 250% center; }
       100% { background-position: -250% center; }
     }
+
+    #intro-skip-btn {
+      position: absolute; z-index: 60; bottom: 28px; right: 28px;
+      background: rgba(10, 27, 48, 0.5); backdrop-filter: blur(14px);
+      border: 1px solid rgba(202,162,61,0.35); color: var(--accent2);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em;
+      padding: 9px 18px; border-radius: 30px; cursor: pointer;
+      opacity: 0; pointer-events: none; transform: translateY(6px);
+      transition: opacity .5s ease, transform .5s ease, background .2s ease;
+    }
+    #intro-skip-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    #intro-skip-btn:hover { background: rgba(202,162,61,0.18); }
 
 
   
@@ -463,24 +485,28 @@
     /* ══ RESPONSIVE MOBILE TRANSFORMS ══ */
     @media (max-width: 768px) {
       #map {
-        position: relative;
-        height: 50vh; 
+        position: absolute;
+        inset: 0;
+        height: 100%;
         width: 100%;
       }
       /* #map-wrap { flex: 1; border-right: 1px solid var(--border); border-bottom: none; } */
       
       #header { top: 10px; left: 10px; right: 10px; padding: 6px 14px 6px 8px; }
-      #controls { top: auto; bottom: calc(50vh + 12px); right: 10px; }
+      #controls { top: auto; bottom: 16px; right: 10px; }
       #coord-hud { display: none; }
 
       #side-drawer { width: 85%; max-width: 280px; left: -300px; }
       #side-drawer.open { transform: translateX(300px); }
 
       #popup {
-        position: relative !important;
-        inset: auto !important;
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
         width: 100% !important;
-        height: 50vh !important;
+        height: 46vh !important;
         border-radius: 0;
         border: none;
         border-top: 2px solid var(--border-glow);
@@ -510,10 +536,12 @@
   <div id="map"></div>
   <div id="welcome-overlay">
     <div class="welcome-box">
+      <div class="welcome-crumb" id="welcome-crumb"></div>
       <div class="welcome-text" id="welcome-text-el"><span id="welcome-typed"></span><span class="welcome-cursor">&nbsp;</span></div>
-      <div class="welcome-sub">Developed by ESSIC</div>
+      <div class="welcome-sub">Piloted &amp; Delivered by ESSIC</div>
     </div>
   </div>
+  <button id="intro-skip-btn" type="button">Skip intro →</button>
 
   <div id="header">
     <button class="drawer-trigger" id="drawer-open-btn" title="Open Building Directory">☰</button>
@@ -632,8 +660,37 @@ const BUILDINGS = [
 ];
 
 const CAMPUS_CENTER = [31.6572, 31.4490];
+const MOBILE_BREAKPOINT = 768;
+const DESKTOP_CAMPUS_ZOOM = 17.55;
+const MOBILE_CAMPUS_ZOOM = 15.98;
+const INTRO_WAYPOINTS = [
+  { label:'Africa', center:[20.0, 2.0], zoom:2.1, pitch:0, bearing:0, duration:3600, wait:2200 },
+  { label:'North Africa', center:[18.0, 27.0], zoom:3.55, pitch:0, bearing:0, duration:3600, wait:2200 },
+  { label:'Egypt', center:[30.1, 26.8], zoom:5.7, pitch:0, bearing:0, duration:3800, wait:2300 },
+  { label:'Damietta Governorate', center:[31.78, 31.37], zoom:9.9, pitch:18, bearing:0, duration:4200, wait:2400 },
+  { label:'New Damietta City', center:[31.64, 31.44], zoom:13.6, pitch:35, bearing:-12, duration:4200, wait:2400 },
+  { label:'Horus University', center:CAMPUS_CENTER, zoom:null, pitch:55, bearing:-20, duration:5200, wait:1800 }
+];
 const buildingMap = {};
 BUILDINGS.forEach((b, i) => { buildingMap[b.id] = { ...b, featureIndex: i }; });
+
+function isMobileView() {
+  return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+function getCampusZoom() {
+  return isMobileView() ? MOBILE_CAMPUS_ZOOM : DESKTOP_CAMPUS_ZOOM;
+}
+
+function getCampusPadding() {
+  if (!isMobileView()) return { top: 90, bottom: 48, left: 48, right: 48 };
+  return { top: 92, bottom: 72, left: 22, right: 22 };
+}
+
+function getBuildingFocusPadding() {
+  if (!isMobileView()) return { top: 90, bottom: 64, left: 52, right: 390 };
+  return { top: 92, bottom: Math.round(window.innerHeight * 0.46) + 28, left: 22, right: 22 };
+}
 
 // Geofenced Spatial Poly Boundaries Map
 const COORDS = {
@@ -794,11 +851,11 @@ function flyTo(map, id) {
   stopRise();
   activeBuildingId = id;
   const [lng, lat] = getCentroid(COORDS[id][0]);
-  const optimizedZoom = window.innerWidth <= 768 ? 17.5 : 18.2;
+  const optimizedZoom = isMobileView() ? 17.0 : 17.7;
 
   map.flyTo({
     center:[lng, lat], zoom: optimizedZoom, pitch:65,
-    bearing: map.getBearing() + 45, duration:5000, easing: easeInOutCubic
+    bearing: map.getBearing() + 45, duration:5000, padding:getBuildingFocusPadding(), easing: easeInOutCubic
   });
 
   map.once('moveend', () => {
@@ -813,7 +870,25 @@ function resetView(map) {
   activeBuildingId = null; currentPopupId = null;
   setSpotlight(map, null);
   map.getSource('campus').setData(GEOJSON);
-  map.flyTo({ center:CAMPUS_CENTER, zoom: window.innerWidth <= 768 ? 15.8 : 16.5, pitch:50, bearing:-20, duration:1400 });
+  map.flyTo({ center:CAMPUS_CENTER, zoom:getCampusZoom(), pitch:50, bearing:-20, padding:getCampusPadding(), duration:1400 });
+}
+
+function zoomOutAfterBuildingOrbit(map, id) {
+  if (activeBuildingId !== id) return;
+  stopOrbit();
+  stopRise();
+  activeBuildingId = null;
+  setSpotlight(map, null);
+  map.getSource('campus').setData(GEOJSON);
+  map.flyTo({
+    center:CAMPUS_CENTER,
+    zoom:getCampusZoom(),
+    pitch:50,
+    bearing:-20,
+    padding:getBuildingFocusPadding(),
+    duration:2400,
+    easing:easeInOutCubic
+  });
 }
 
 function showPopup(b) {
@@ -866,7 +941,7 @@ window.addEventListener('DOMContentLoaded', () => {
         { id:'tiles', type:'raster', source:'osm', paint:{'raster-opacity':1,'raster-saturation':0,'raster-brightness-min':0} }
       ]
     },
-    minZoom:0, maxZoom:18,
+    minZoom:0, maxZoom:20,
     projection:'globe',
     center:[CAMPUS_CENTER[0], 15], zoom:0.5, pitch:0, bearing:0, antialias:true
   });
@@ -890,42 +965,115 @@ window.addEventListener('DOMContentLoaded', () => {
       'fog-ground-blend': 0.5
     });
 
+    // Returning visitors within the same session skip straight to the settled campus view
+    const skipIntro = sessionStorage.getItem('huIntroPlayed') === '1';
+    let introSkipped = skipIntro;
+    let progressTimer;
+
     // Slow auto-rotation of the globe while the loading screen is up
     let globeSpinning = true;
     function spinGlobe(timestamp) {
-      if (!globeSpinning) return;
+      if (!globeSpinning || introSkipped) return;
       const c = map.getCenter();
       map.jumpTo({ center: [c.lng + 0.35, c.lat], zoom: map.getZoom(), pitch: 0, bearing: 0 });
       requestAnimationFrame(spinGlobe);
     }
-    requestAnimationFrame(spinGlobe);
+    if (!skipIntro) requestAnimationFrame(spinGlobe);
 
     // Keeps the globe turning for one full extra revolution, easing to a stop
-    // exactly over the campus — used so the earth is still visibly spinning
-    // while the "Welcome" headline types out, instead of sitting still.
-    function spinToCampus(duration) {
+    // exactly over a target — used so the earth is still visibly spinning
+    // while it settles onto the first waypoint (Africa), instead of sitting still.
+    function spinToTarget(targetCenter, targetZoom, duration, callback) {
       const startCenter = map.getCenter();
       const startLng = startCenter.lng;
       const startLat = startCenter.lat;
       const startZoom = map.getZoom();
-      const targetLat = CAMPUS_CENTER[1] + 8;
-      const targetZoom = 2.2;
-      let delta = ((CAMPUS_CENTER[0] - startLng) % 360 + 360) % 360;
+      let delta = ((targetCenter[0] - startLng) % 360 + 360) % 360;
       delta += 360; // one extra full turn around the earth before settling
       const endLng = startLng + delta;
       const startTime = performance.now();
       function frame(now) {
+        if (introSkipped) return;
         const t = Math.min(1, (now - startTime) / duration);
         const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
         map.jumpTo({
-          center: [startLng + (endLng - startLng) * ease, startLat + (targetLat - startLat) * ease],
+          center: [startLng + (endLng - startLng) * ease, startLat + (targetCenter[1] - startLat) * ease],
           zoom: startZoom + (targetZoom - startZoom) * ease,
           pitch: 0,
           bearing: 0
         });
-        if (t < 1) requestAnimationFrame(frame);
+        if (t < 1) { requestAnimationFrame(frame); }
+        else if (callback) { callback(); }
       }
       requestAnimationFrame(frame);
+    }
+
+    // Types only the newly-added segment of the breadcrumb, keeping earlier
+    // confirmed names static (e.g. "Africa, " already there, types "North Africa")
+    function typeSegment(el, prefix, text, speed, cb) {
+      let i = 0;
+      const timer = setInterval(() => {
+        if (introSkipped) { clearInterval(timer); return; }
+        i++;
+        el.textContent = prefix + text.slice(0, i);
+        if (i >= text.length) { clearInterval(timer); if (cb) cb(); }
+      }, speed);
+    }
+
+    function applyFinalMapTint() {
+      map.setPaintProperty('tiles', 'raster-opacity', 0.4);
+      map.setPaintProperty('tiles', 'raster-saturation', -0.3);
+      map.setPaintProperty('tiles', 'raster-brightness-min', 0.1);
+      if (map.getLayer('outside-mask')) map.setPaintProperty('outside-mask', 'fill-opacity', 0.9);
+    }
+
+    function runWaypoints(index, typedLabels) {
+      if (introSkipped) return;
+
+      if (index >= INTRO_WAYPOINTS.length) {
+        startFinalApproach();
+        return;
+      }
+
+      const waypoint = INTRO_WAYPOINTS[index];
+      const crumbEl = document.getElementById('welcome-crumb');
+      const overlay = document.getElementById('welcome-overlay');
+      const prefix = typedLabels.length ? typedLabels.join(', ') + ', ' : '';
+
+      overlay.classList.remove('fade-out');
+      overlay.classList.add('visible');
+
+      const travelDone = () => {
+        if (introSkipped) return;
+        typeSegment(crumbEl, prefix, waypoint.label, 65, () => {
+          if (introSkipped) return;
+          const nextLabels = typedLabels.concat(waypoint.label);
+          setTimeout(() => {
+            if (introSkipped) return;
+            if (index === INTRO_WAYPOINTS.length - 1) applyFinalMapTint();
+            runWaypoints(index + 1, nextLabels);
+          }, waypoint.wait);
+        });
+      };
+
+      if (index === 0) {
+        spinToTarget(waypoint.center, waypoint.zoom, waypoint.duration, travelDone);
+        return;
+      }
+
+      map.flyTo({
+        center: waypoint.center,
+        zoom: waypoint.zoom ?? getCampusZoom(),
+        pitch: waypoint.pitch,
+        bearing: waypoint.bearing,
+        duration: waypoint.duration,
+        padding: index === INTRO_WAYPOINTS.length - 1 ? getCampusPadding() : { top: 0, bottom: 0, left: 0, right: 0 },
+        curve: 1.25,
+        speed: 0.7,
+        essential: true,
+        easing: easeInOutCubic
+      });
+      map.once('moveend', travelDone);
     }
 
     // Typewriter effect for the "Welcome to Horus University" intro line
@@ -936,6 +1084,7 @@ window.addEventListener('DOMContentLoaded', () => {
       overlay.classList.add('visible');
       let i = 0;
       const timer = setInterval(() => {
+        if (introSkipped) { clearInterval(timer); return; }
         i++;
         el.textContent = text.slice(0, i);
         if (i >= text.length) {
@@ -950,6 +1099,58 @@ window.addEventListener('DOMContentLoaded', () => {
       }, 150);
     }
 
+    function startFinalApproach() {
+      if (introSkipped) return;
+      typeWelcome('Welcome to Horus University', () => {
+        if (introSkipped) return;
+
+        droneWrap.classList.remove('welcome-hover-bob', 'welcome-beacon');
+
+        applyFinalMapTint();
+        map.easeTo({
+          center: CAMPUS_CENTER,
+          zoom: getCampusZoom(),
+          pitch: 55,
+          bearing: -20,
+          padding: getCampusPadding(),
+          duration: 1400,
+          easing: t => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2
+        });
+
+        const speedLines = droneWrap.querySelector('#drone-speed-lines');
+        if (speedLines) speedLines.style.opacity = '0';
+        droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.1s');
+        droneWrap.style.transition = 'top 3.2s cubic-bezier(.4,0,.2,1), left 3.2s cubic-bezier(.4,0,.2,1), transform 3.2s cubic-bezier(.4,0,.2,1)';
+        droneWrap.style.top = '32%';
+        droneWrap.style.transform = 'translate(-50%, -50%) scale(0.85)';
+
+        setTimeout(() => {
+          if (introSkipped) return;
+          const speedLines2 = droneWrap.querySelector('#drone-speed-lines');
+          if (speedLines2) speedLines2.style.opacity = '0';
+          droneWrap.style.transition = 'top 5.5s cubic-bezier(.4,0,.2,1), left 5.5s cubic-bezier(.4,0,.2,1), transform 5.5s cubic-bezier(.4,0,.2,1)';
+          droneWrap.style.left = (window.innerWidth - 130 - 72) + 'px';
+          droneWrap.style.top = '72px';
+          droneWrap.style.transform = 'scale(1)';
+
+          setTimeout(() => {
+            if (introSkipped) return;
+            droneWrap.style.transition = 'none';
+            droneWrap.style.right = '72px';
+            droneWrap.style.left = 'auto';
+            droneWrap.style.top = '72px';
+            droneWrap.style.transform = '';
+            droneWrap.style.animation = '';
+            droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
+            void droneWrap.offsetWidth;
+            droneWrap.classList.add('hovering');
+            // restore the base transition string used for building fly-tos
+            droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
+          }, 5700);
+        }, 1600);
+      });
+    }
+
     const loadBar = document.getElementById('load-bar');
     const loadStatus = document.getElementById('load-status');
     const steps = [
@@ -959,15 +1160,20 @@ window.addEventListener('DOMContentLoaded', () => {
       [100, 'System Operational']
     ];
     let stepIdx = 0;
-    const progressTimer = setInterval(() => {
+    progressTimer = setInterval(() => {
+      if (introSkipped) { clearInterval(progressTimer); return; }
       if (stepIdx < steps.length) {
         loadBar.style.width = steps[stepIdx] + '%';
         loadStatus.textContent = steps[stepIdx];
         stepIdx++;
       } else {
         clearInterval(progressTimer);
+        sessionStorage.setItem('huIntroPlayed', '1');
         setTimeout(() => {
+          if (introSkipped) return;
           document.getElementById('loading').classList.add('fade-out');
+          const skipBtn = document.getElementById('intro-skip-btn');
+          if (skipBtn) skipBtn.classList.add('show');
 
           // Stop the globe auto-spin
           globeSpinning = false;
@@ -983,11 +1189,11 @@ window.addEventListener('DOMContentLoaded', () => {
           droneWrap.style.opacity = '0';
 
           // FULL-EARTH → CAMPUS INTRO ANIMATION
-          // Step 1: keep the globe turning — one full revolution — while easing
-          // its landing onto the campus longitude, timed to the typed headline
-          spinToCampus(5700);
+          // Step 1: zoom through a chain of named waypoints, waiting and
+          // typing the breadcrumb at each stop, before the final approach
+          runWaypoints(0, []);
 
-          // Fade the drone in, hovering above the card, beaming the welcome message down as the text types out
+          // Fade the drone in, hovering above the card, beaming the location trail down as it types
           setTimeout(() => {
             droneWrap.style.opacity = '1';
             droneWrap.style.transform = 'translate(-50%, -50%) scale(1) translateY(0)';
@@ -995,70 +1201,6 @@ window.addEventListener('DOMContentLoaded', () => {
             droneWrap.classList.add('welcome-beacon');
             setTimeout(() => droneWrap.classList.add('welcome-hover-bob'), 1400);
           }, 400);
-
-          typeWelcome('Welcome to Horus University', () => {
-
-            droneWrap.classList.remove('welcome-hover-bob', 'welcome-beacon');
-
-            // Step 2: apply the app's signature tint/desaturation to the globe imagery
-            map.setPaintProperty('tiles', 'raster-opacity', 0.4);
-            map.setPaintProperty('tiles', 'raster-saturation', -0.3);
-            map.setPaintProperty('tiles', 'raster-brightness-min', 0.1);
-            map.setPaintProperty('outside-mask', 'fill-opacity', 0.9);
-
-            // Drone leads the dive: pushes forward toward the campus, speed lines trailing
-            droneWrap.style.transition = 'top 4.4s cubic-bezier(.4,0,.2,1), left 4.4s cubic-bezier(.4,0,.2,1), transform 4.4s cubic-bezier(.4,0,.2,1)';
-            droneWrap.style.top = '36%';
-            droneWrap.style.transform = 'translate(-50%, -50%) scale(0.8)';
-            droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.06s');
-            const speedLines = droneWrap.querySelector('#drone-speed-lines');
-            if (speedLines) speedLines.style.opacity = '1';
-
-            // Dive down out of orbit toward the campus, globe morphs into flat map as zoom increases
-            map.flyTo({
-              center: CAMPUS_CENTER,
-              zoom: 19.2,
-              pitch: 75,
-              bearing: 30,
-              duration: 4400,
-              curve: 1.6,
-              speed: 0.7,
-              essential: true
-            });
-
-            // Step 3: settle into the normal orbit/pull-back view over the campus, drone returns home
-            setTimeout(() => {
-              map.flyTo({
-                center: CAMPUS_CENTER,
-                zoom: window.innerWidth <= 768 ? 17.4 : 18.4,
-                pitch: 55,
-                bearing: -20,
-                duration: 6000, // Slow and graceful intro pull-back
-                easing: t => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2
-              });
-
-              const speedLines2 = droneWrap.querySelector('#drone-speed-lines');
-              if (speedLines2) speedLines2.style.opacity = '0';
-              droneWrap.style.transition = 'top 5.5s cubic-bezier(.4,0,.2,1), left 5.5s cubic-bezier(.4,0,.2,1), transform 5.5s cubic-bezier(.4,0,.2,1)';
-              droneWrap.style.left = (window.innerWidth - 130 - 72) + 'px';
-              droneWrap.style.top = '72px';
-              droneWrap.style.transform = 'scale(1)';
-
-              setTimeout(() => {
-                droneWrap.style.transition = 'none';
-                droneWrap.style.right = '72px';
-                droneWrap.style.left = 'auto';
-                droneWrap.style.top = '72px';
-                droneWrap.style.transform = '';
-                droneWrap.style.animation = '';
-                droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
-                void droneWrap.offsetWidth;
-                droneWrap.classList.add('hovering');
-                // restore the base transition string used for building fly-tos
-                droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
-              }, 5700);
-            }, 4600);
-          });
 
         }, 300);
       }
@@ -1182,6 +1324,51 @@ window.addEventListener('DOMContentLoaded', () => {
     // Click → open website
     droneWrap.addEventListener('click', () => window.open('https://horus.edu.eg/electronic-services-and-scientific-innovation-essic/', '_blank'));
 
+    // Snap straight to the settled campus view — used for returning visitors
+    // (session-skipped intro) and for the manual "Skip intro" button.
+    function goToFinalState() {
+      introSkipped = true;
+      globeSpinning = false;
+      if (progressTimer) clearInterval(progressTimer);
+
+      document.getElementById('loading').classList.add('fade-out');
+      const overlay = document.getElementById('welcome-overlay');
+      overlay.classList.remove('visible', 'sub-visible');
+      overlay.classList.add('fade-out');
+
+      map.jumpTo({
+        center: CAMPUS_CENTER,
+        zoom: getCampusZoom(),
+        pitch: 55,
+        bearing: -20,
+        padding: getCampusPadding()
+      });
+      applyFinalMapTint();
+
+      droneWrap.classList.remove('welcome-hover-bob', 'welcome-beacon', 'orbiting-building', 'flying-to-building');
+      droneWrap.style.transition = 'none';
+      droneWrap.style.animation = '';
+      droneWrap.style.right = '72px';
+      droneWrap.style.left = 'auto';
+      droneWrap.style.top = '72px';
+      droneWrap.style.transform = '';
+      droneWrap.style.opacity = '1';
+      droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
+      const speedLines = droneWrap.querySelector('#drone-speed-lines');
+      if (speedLines) speedLines.style.opacity = '0';
+      void droneWrap.offsetWidth;
+      droneWrap.classList.add('hovering');
+      droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
+
+      const skipBtn = document.getElementById('intro-skip-btn');
+      if (skipBtn) skipBtn.classList.remove('show');
+    }
+
+    const skipBtn = document.getElementById('intro-skip-btn');
+    if (skipBtn) skipBtn.addEventListener('click', goToFinalState);
+
+    if (skipIntro) goToFinalState();
+
     // Animate drone when flying to a building
     const _origFlyTo = flyTo;
 
@@ -1250,6 +1437,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // Phase 3: orbit for ~12s, then return home
       setTimeout(() => {
+        zoomOutAfterBuildingOrbit(map, buildingId);
         droneEl.classList.remove('orbiting-building');
         droneEl.classList.add('flying-to-building');
         droneEl.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.07s');
@@ -1348,6 +1536,3 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
-
-

@@ -1,1 +1,1 @@
-Horus University maps
+Horus university Responsive maps

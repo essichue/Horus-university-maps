@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Horus University Campus 3D Map</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     
     /* ══ LOGO-DRIVEN PREMIUM THEME (DEEP NAVY & HORUS GOLD) ══ */
@@ -116,9 +116,9 @@
     #welcome-overlay.visible .welcome-box { opacity: 1; transform: translateY(0) scale(1); }
     #welcome-overlay.fade-out .welcome-box { opacity: 0; transition: opacity .9s ease; }
     #welcome-overlay .welcome-text {
-      font-family: 'Playfair Display', 'Syne', serif; font-weight: 700;
-      font-size: clamp(22px, 3.6vw, 44px);
-      color: var(--text); letter-spacing: .01em; text-align: center;
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: clamp(24px, 4.6vw, 52px);
+      color: var(--text); letter-spacing: .04em; text-align: center;
       text-shadow: 0 0 30px rgba(202,162,61,0.55), 0 0 80px rgba(202,162,61,0.25);
     }
     #welcome-overlay .welcome-cursor {
@@ -664,12 +664,12 @@ const MOBILE_BREAKPOINT = 768;
 const DESKTOP_CAMPUS_ZOOM = 17.55;
 const MOBILE_CAMPUS_ZOOM = 15.98;
 const INTRO_WAYPOINTS = [
-  { label:'Africa', center:[20.0, 2.0], zoom:2.1, pitch:0, bearing:0, duration:1600, wait:500 },
-  { label:'North Africa', center:[18.0, 27.0], zoom:3.55, pitch:0, bearing:0, duration:1500, wait:500 },
-  { label:'Egypt', center:[30.1, 26.8], zoom:5.7, pitch:0, bearing:0, duration:1600, wait:550 },
-  { label:'Damietta Governorate', center:[31.78, 31.37], zoom:9.9, pitch:18, bearing:0, duration:1800, wait:600 },
-  { label:'New Damietta City', center:[31.64, 31.44], zoom:13.6, pitch:35, bearing:-12, duration:1800, wait:600 },
-  { label:'Horus University', center:CAMPUS_CENTER, zoom:null, pitch:55, bearing:-20, duration:2200, wait:400 }
+  { label:'Africa', center:[20.0, 2.0], zoom:2.1, pitch:0, bearing:0, duration:3600, wait:2200 },
+  { label:'North Africa', center:[18.0, 27.0], zoom:3.55, pitch:0, bearing:0, duration:3600, wait:2200 },
+  { label:'Egypt', center:[30.1, 26.8], zoom:5.7, pitch:0, bearing:0, duration:3800, wait:2300 },
+  { label:'Damietta Governorate', center:[31.78, 31.37], zoom:9.9, pitch:18, bearing:0, duration:4200, wait:2400 },
+  { label:'New Damietta City', center:[31.64, 31.44], zoom:13.6, pitch:35, bearing:-12, duration:4200, wait:2400 },
+  { label:'Horus University', center:CAMPUS_CENTER, zoom:null, pitch:55, bearing:-20, duration:5200, wait:1800 }
 ];
 const buildingMap = {};
 BUILDINGS.forEach((b, i) => { buildingMap[b.id] = { ...b, featureIndex: i }; });
@@ -1045,7 +1045,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const travelDone = () => {
         if (introSkipped) return;
-        typeSegment(crumbEl, prefix, waypoint.label, 45, () => {
+        typeSegment(crumbEl, prefix, waypoint.label, 65, () => {
           if (introSkipped) return;
           const nextLabels = typedLabels.concat(waypoint.label);
           setTimeout(() => {
@@ -1093,10 +1093,10 @@ window.addEventListener('DOMContentLoaded', () => {
           setTimeout(() => {
             overlay.classList.remove('visible');
             overlay.classList.add('fade-out');
-            setTimeout(() => { if (callback) callback(); }, 700);
-          }, 1000);
+            setTimeout(() => { if (callback) callback(); }, 1200);
+          }, 1900);
         }
-      }, 110);
+      }, 150);
     }
 
     function startFinalApproach() {
@@ -1120,7 +1120,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const speedLines = droneWrap.querySelector('#drone-speed-lines');
         if (speedLines) speedLines.style.opacity = '0';
         droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.1s');
-        droneWrap.style.transition = 'top 1.6s cubic-bezier(.4,0,.2,1), left 1.6s cubic-bezier(.4,0,.2,1), transform 1.6s cubic-bezier(.4,0,.2,1)';
+        droneWrap.style.transition = 'top 3.2s cubic-bezier(.4,0,.2,1), left 3.2s cubic-bezier(.4,0,.2,1), transform 3.2s cubic-bezier(.4,0,.2,1)';
         droneWrap.style.top = '32%';
         droneWrap.style.transform = 'translate(-50%, -50%) scale(0.85)';
 
@@ -1128,7 +1128,7 @@ window.addEventListener('DOMContentLoaded', () => {
           if (introSkipped) return;
           const speedLines2 = droneWrap.querySelector('#drone-speed-lines');
           if (speedLines2) speedLines2.style.opacity = '0';
-          droneWrap.style.transition = 'top 2.4s cubic-bezier(.4,0,.2,1), left 2.4s cubic-bezier(.4,0,.2,1), transform 2.4s cubic-bezier(.4,0,.2,1)';
+          droneWrap.style.transition = 'top 5.5s cubic-bezier(.4,0,.2,1), left 5.5s cubic-bezier(.4,0,.2,1), transform 5.5s cubic-bezier(.4,0,.2,1)';
           droneWrap.style.left = (window.innerWidth - 130 - 72) + 'px';
           droneWrap.style.top = '72px';
           droneWrap.style.transform = 'scale(1)';
@@ -1146,8 +1146,8 @@ window.addEventListener('DOMContentLoaded', () => {
             droneWrap.classList.add('hovering');
             // restore the base transition string used for building fly-tos
             droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
-          }, 2500);
-        }, 800);
+          }, 5700);
+        }, 1600);
       });
     }
 

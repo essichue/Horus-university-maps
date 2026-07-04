@@ -1,2 +1,2 @@
 Horus university Responsive maps
-without embedding
+with embedding

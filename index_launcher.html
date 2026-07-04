@@ -1,0 +1,371 @@
+<!--
+  ══════════════════════════════════════════════════════════════════
+  HORUS UNIVERSITY — CAMPUS MAP LAUNCHER (embed snippet)
+  ══════════════════════════════════════════════════════════════════
+-->
+<div id="hu-map-launcher">
+
+  <!-- ── Preview card (what visitors see by default) ── -->
+  <button type="button" id="hu-map-card" aria-haspopup="dialog">
+    <div class="hu-card-scene">
+      
+      <!-- 1. MAP GIF LAYER (Fades and ZOOMS into target coordinates) -->
+      <img class="hu-dynamic-layer hu-map-view" 
+           src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgIpYt8nz3yYz0qHDDofxO68zia0zHhbt8yST6wNSm46vUtAXkGQGFFlo&s=10?auto=format&fit=crop&q=80&w=800&h=200" 
+           alt="Interactive Map Preview">
+           
+      <!-- 2. RADAR GIF LAYER (Alternates with the Map) -->
+      <div class="hu-dynamic-layer hu-radar-view">
+        <div class="hu-radar-grid"></div>
+        <div class="hu-radar-sweep"></div>
+      </div>
+
+      <!-- 3. MAP INTERFACE ICONS & TELEMETRY -->
+      
+      <!-- Top Left: GPS Coordinates -->
+      <div class="hu-telemetry-data">
+        <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+          <circle cx="12" cy="12" r="3"/><path d="M19 12c0-3.87-3.13-7-7-7s-7 3.13-7 7 3.13 7 7 7 7-3.13 7-7z"/>
+        </svg>
+        <div class="hu-telemetry-text">
+          <span class="hu-target-status">TARGET ACQUIRED</span>
+          <span>LAT 31.4490&nbsp;&nbsp;LNG 31.6572</span>
+        </div>
+      </div>
+
+      <!-- Center Pulsing GPS Pin & Target Lock Reticle -->
+      <div class="hu-center-pin-container">
+        <!-- New visual: locks onto the coordinate -->
+        <div class="hu-target-reticle"></div>
+        <div class="hu-pin-pulse"></div>
+        <svg class="hu-pin" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 20 12 20s12-11 12-20C24 5.37 18.63 0 12 0z" fill="#caa23d"/>
+          <circle cx="12" cy="12" r="5" fill="#030f1e"/>
+        </svg>
+      </div>
+
+      <!-- Right Side: Zoom Controls -->
+      <div class="hu-map-controls">
+        <div class="hu-icon-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="hu-divider"></div>
+        <div class="hu-icon-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M5 12h14"/></svg>
+        </div>
+      </div>
+
+      <!-- Bottom Left: Map Layers & 3D Icon -->
+      <div class="hu-bottom-tools">
+        <div class="hu-icon-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg>
+        </div>
+        <div class="hu-icon-btn hu-3d-text">3D</div>
+      </div>
+
+      <!-- Compass Overlay -->
+      <svg class="hu-compass" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="15" cy="15" r="12.5" fill="none" stroke="rgba(202,162,61,0.6)" stroke-width="1"/>
+        <path d="M15 4 L18 15 L15 26 L12 15 Z" fill="rgba(202,162,61,0.85)"/>
+        <text x="15" y="9" text-anchor="middle" font-size="6" fill="#030f1e" font-weight="bold" font-family="Arial">N</text>
+      </svg>
+
+      <!-- Hover Overlay CTA (Click to Launch) -->
+      <div class="hu-hover-cta-overlay">
+        <div class="hu-cta-pill">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          ACTIVATE INTERACTIVE MAP
+        </div>
+      </div>
+
+    </div>
+    <div class="hu-card-footer">
+      <span class="hu-eyebrow">HORUS UNIVERSITY · CAMPUS EXPLORER</span>
+      <span class="hu-title">Explore the interactive 3D campus map</span>
+      <span class="hu-cta"><span class="hu-play">▶</span> Launch application</span>
+    </div>
+  </button>
+
+  <!-- ── Full-screen modal (populated only after click) ── -->
+  <div id="hu-map-modal" role="dialog" aria-modal="true" aria-label="Campus map">
+    <button type="button" id="hu-map-close" aria-label="Close map">✕</button>
+    <div id="hu-map-loading">
+      <div class="hu-load-ring"></div>
+      <div class="hu-load-ring2"></div>
+      <span>Initializing campus map…</span>
+    </div>
+    <iframe id="hu-map-frame" title="Horus University Interactive Campus Map" allow="fullscreen" loading="eager"></iframe>
+  </div>
+</div>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  #hu-map-launcher {
+    --hu-bg: #030f1e;
+    --hu-surface: #0a1b30;
+    --hu-border: #1c3557;
+    --hu-gold: #caa23d;
+    --hu-gold-light: #f5d070;
+    --hu-text: #e2ecf5;
+    --hu-muted: #8fa4b9;
+    font-family: 'Syne', Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  #hu-map-launcher * { box-sizing: border-box; }
+
+  #hu-map-card {
+    all: unset; cursor: pointer; display: block; width: 100%;
+    background: var(--hu-surface);
+    border: 1px solid var(--hu-border);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+  }
+  #hu-map-card:hover, #hu-map-card:focus-visible {
+    transform: translateY(-4px);
+    border-color: rgba(202,162,61,0.65);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 45px rgba(202,162,61,0.2);
+  }
+
+  /* ── SCENE CONTAINER ── */
+  .hu-card-scene {
+    position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 180px;
+    background: #030f1e;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ── ALTERNATING & TARGET ZOOM ANIMATIONS ── */
+  .hu-dynamic-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+
+  /* Target Lock Zoom Animation */
+  .hu-map-view {
+    z-index: 1;
+    opacity: 0.6;
+    mix-blend-mode: luminosity; 
+    /* The origin point sets WHERE the map zooms into. 50% 50% is dead center. */
+    transform-origin: 50% 50%;
+    animation: hu-fade-map 8s infinite, hu-target-zoom 12s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite alternate;
+  }
+
+  /* Deeply zoom into the coordinates */
+  @keyframes hu-target-zoom {
+    0% { transform: scale(1); }
+    15% { transform: scale(1.02); }
+    100% { transform: scale(1.65); }
+  }
+
+  /* Radar Scanner View */
+  .hu-radar-view {
+    z-index: 2;
+    background: radial-gradient(circle at center, rgba(3,15,30,0.1) 0%, rgba(3,15,30,0.9) 100%);
+    animation: hu-fade-radar 8s infinite;
+  }
+
+  /* Keyframes for visibility fading */
+  @keyframes hu-fade-map {
+    0%, 40% { opacity: 0.6; filter: brightness(1) blur(0px); }
+    50%, 90% { opacity: 0.15; filter: brightness(0.5) blur(2px); }
+    100% { opacity: 0.6; filter: brightness(1) blur(0px); }
+  }
+  @keyframes hu-fade-radar {
+    0%, 40% { opacity: 0; transform: scale(0.95); }
+    50%, 90% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.95); }
+  }
+
+  .hu-radar-grid {
+    position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(202,162,61,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(202,162,61,0.15) 1px, transparent 1px);
+    background-size: 30px 30px;
+    background-position: center;
+  }
+  .hu-radar-sweep {
+    position: absolute; top: 50%; left: 50%;
+    width: 280px; height: 280px; margin: -140px 0 0 -140px;
+    border-radius: 50%;
+    border: 1px solid rgba(202,162,61,0.3);
+    background: conic-gradient(from 0deg, rgba(202,162,61,0.4) 0deg, rgba(202,162,61,0.0) 50deg, transparent 180deg);
+    animation: hu-spin 3s linear infinite;
+  }
+
+  /* ── MAP UI ICONS & TELEMETRY ── */
+  
+  .hu-telemetry-data {
+    position: absolute; top: 14px; left: 14px; z-index: 5;
+    display: flex; align-items: flex-start; gap: 8px;
+    background: rgba(10,27,48,0.75); backdrop-filter: blur(4px);
+    padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(202,162,61,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    color: var(--hu-gold-light);
+  }
+  .hu-telemetry-data svg { margin-top: 2px; }
+  .hu-telemetry-text { display: flex; flex-direction: column; gap: 2px; }
+  .hu-target-status {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;
+    color: var(--hu-gold); letter-spacing: 0.15em; animation: hu-blink 2s infinite;
+  }
+  .hu-telemetry-text span:last-child {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+  }
+  
+  @keyframes hu-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .hu-map-controls {
+    position: absolute; right: 14px; top: 50px; z-index: 5;
+    background: rgba(10,27,48,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(202,162,61,0.4); border-radius: 8px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .hu-bottom-tools {
+    position: absolute; left: 14px; bottom: 14px; z-index: 5;
+    display: flex; gap: 8px;
+  }
+  .hu-icon-btn {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    color: var(--hu-text);
+  }
+  .hu-bottom-tools .hu-icon-btn {
+    background: rgba(10,27,48,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(202,162,61,0.4); border-radius: 8px;
+  }
+  .hu-3d-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--hu-gold-light); }
+  .hu-divider { width: 100%; height: 1px; background: rgba(202,162,61,0.2); }
+
+  .hu-compass { position: absolute; right: 14px; top: 12px; width: 28px; height: 28px; z-index: 5; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+
+  /* ── TARGETING RETICLE & PIN ── */
+  .hu-center-pin-container {
+    position: absolute; z-index: 6; display: flex; align-items: center; justify-content: center;
+  }
+  
+  /* The spinning crosshair that locks onto the location */
+  .hu-target-reticle {
+    position: absolute; width: 80px; height: 80px;
+    border: 1px dashed rgba(202,162,61,0.6);
+    border-radius: 50%;
+    animation: hu-reticle-lock 12s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite alternate;
+  }
+  @keyframes hu-reticle-lock {
+    0% { transform: scale(3) rotate(0deg); opacity: 0; }
+    20% { transform: scale(1.5) rotate(45deg); opacity: 0.5; }
+    100% { transform: scale(0.8) rotate(90deg); opacity: 1; border: 2px solid rgba(202,162,61,0.8); }
+  }
+
+  .hu-pin { width: 34px; height: 46px; position: relative; z-index: 2; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.6)); }
+  .hu-pin-pulse {
+    position: absolute; bottom: -8px; width: 40px; height: 12px;
+    background: var(--hu-gold); border-radius: 50%;
+    animation: hu-pulse-ring 2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  @keyframes hu-pulse-ring {
+    0% { transform: scale(0.5); opacity: 0.8; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  /* ── HOVER CTA OVERLAY ── */
+  .hu-hover-cta-overlay {
+    position: absolute; inset: 0; z-index: 10;
+    background: rgba(3, 15, 30, 0.4);
+    backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .hu-cta-pill {
+    background: var(--hu-gold);
+    color: #030f1e;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 10px 20px; border-radius: 30px;
+    display: flex; align-items: center; gap: 8px;
+    transform: translateY(10px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.4), 0 0 20px rgba(202,162,61,0.4);
+  }
+  #hu-map-card:hover .hu-hover-cta-overlay { opacity: 1; }
+  #hu-map-card:hover .hu-cta-pill { transform: translateY(0); }
+
+
+  /* ── FOOTER ── */
+  .hu-card-footer { display: flex; flex-direction: column; gap: 6px; padding: 18px 22px 22px; position: relative; z-index: 11; background: var(--hu-surface); }
+  .hu-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .14em; color: var(--hu-gold); text-transform: uppercase; }
+  .hu-title { font-weight: 700; font-size: 17px; color: var(--hu-text); }
+  .hu-cta { margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .06em; color: var(--hu-gold-light); }
+  .hu-play { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(202,162,61,0.15); border: 1px solid rgba(202,162,61,0.5); font-size: 9px; }
+
+  /* ── MODAL MAP FRAME ── */
+  #hu-map-modal { display: none; position: fixed; inset: 0; z-index: 9999; background: var(--hu-bg); }
+  #hu-map-modal.open { display: block; }
+  #hu-map-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity .5s ease; }
+  #hu-map-frame.ready { opacity: 1; }
+
+  #hu-map-close {
+    all: unset; position: absolute; top: 18px; right: 18px; z-index: 3;
+    width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(10,27,48,0.7); backdrop-filter: blur(10px);
+    border: 1px solid var(--hu-border); color: var(--hu-text);
+    font-size: 14px; transition: background .2s ease, border-color .2s ease;
+  }
+  #hu-map-close:hover { background: rgba(202,162,61,0.18); border-color: rgba(202,162,61,0.5); }
+
+  #hu-map-loading {
+    position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    color: var(--hu-muted); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .1em;
+  }
+  .hu-load-ring, .hu-load-ring2 { position: absolute; width: 56px; height: 56px; border-radius: 50%; border: 2px solid transparent; }
+  .hu-load-ring { border-top-color: var(--hu-gold); animation: hu-spin 1s linear infinite; }
+  .hu-load-ring2 { border-bottom-color: var(--hu-gold-light); animation: hu-spin 1.6s linear infinite reverse; }
+  @keyframes hu-spin { to { transform: rotate(360deg); } }
+  #hu-map-loading span { margin-top: 70px; }
+  
+  @media (max-width: 820px) {
+    .hu-card-scene { aspect-ratio: 4 / 3; }
+    .hu-map-controls { top: 60px; right: 10px; }
+    .hu-bottom-tools { bottom: 10px; left: 10px; }
+    .hu-telemetry-data { font-size: 9px; padding: 6px 10px; }
+  }
+</style>
+
+<script>
+  (function () {
+    const MAP_SRC = 'campus-map.html'; // ← point this at your hosted map file
+
+    const card   = document.getElementById('hu-map-card');
+    const modal  = document.getElementById('hu-map-modal');
+    const frame  = document.getElementById('hu-map-frame');
+    const loader = document.getElementById('hu-map-loading');
+    const closeBtn = document.getElementById('hu-map-close');
+
+    function openMap() {
+      modal.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      if (!frame.src) frame.src = MAP_SRC;
+    }
+    function closeMap() {
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+      frame.src = '';
+      frame.classList.remove('ready');
+      loader.style.display = 'flex';
+    }
+
+    frame.addEventListener('load', () => {
+      if (!frame.src) return;
+      loader.style.display = 'none';
+      frame.classList.add('ready');
+    });
+
+    card.addEventListener('click', openMap);
+    closeBtn.addEventListener('click', closeMap);
+    modal.addEventListener('keydown', e => { if (e.key === 'Escape') closeMap(); });
+  })();
+</script>

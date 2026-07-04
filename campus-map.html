@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horus University Campus 3D Map</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    /* ══ LOGO-DRIVEN PREMIUM THEME (DEEP NAVY & HORUS GOLD) ══ */
+    :root {
+      --bg: #030f1e;
+      --surface: #0a1b30;
+      --surface2: #112643;
+      --border: #1c3557;
+      --border-glow: #caa23d; /* Horus Gold Glow */
+      --accent: #caa23d;     /* Horus Gold Primary */
+      --accent2: #f5d070;    /* Horus Gold Light Accent */
+      --accent-glow: rgba(202, 162, 61, 0.25);
+      --text: #e2ecf5;
+      --text-dim: #8fa4b9;
+      --muted: #526982;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0,0,0,0.6);
+      --shadow-lg: 0 16px 64px rgba(0,0,0,0.8);
+    }
+    
+
+     /* ══ LOADING SCREEN ══ */
+    #loading {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    #loading.fade-out { opacity: 0; transform: scale(1.05); pointer-events: none; }
+
+    .load-logo-wrap {
+      width: 80px; height: 80px; margin-bottom: 24px;
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .load-logo-wrap img { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 0 20px var(--gold-glow)); }
+    .load-logo-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid transparent; border-top-color: var(--gold);
+      animation: spin 1s linear infinite;
+    }
+    .load-logo-ring2 {
+      position: absolute; inset: 8px; border-radius: 50%;
+      border: 2px solid transparent; border-bottom-color: var(--sky);
+      animation: spin 1.6s linear infinite reverse;
+    }
+
+    .load-title {
+      font-size: 20px; font-weight: 800; letter-spacing: .06em;
+      color: var(--text); margin-bottom: 4px;
+    }
+    .load-sub {
+      font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: 28px;
+    }
+    .load-bar-wrap {
+      width: 180px; height: 3px;
+      background: var(--border); border-radius: 3px; overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .load-bar {
+      height: 100%; width: 0%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--sky));
+      box-shadow: 0 0 10px var(--gold-glow);
+      transition: width .3s ease;
+    }
+    .load-status {
+      font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .06em;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; overflow: hidden; }
+    
+    /* Responsive Application Shell Layout */
+    #app-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #map-wrap {
+      flex: 1; position: relative; min-height: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #map { position: absolute; inset: 0; }
+
+    /* ══ WELCOME TYPING OVERLAY ══ */
+    #welcome-overlay {
+      position: absolute; inset: 0; z-index: 60;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; background: transparent;
+    }
+    #welcome-overlay .welcome-box {
+      display: flex; flex-direction: column; align-items: center;
+      background: rgba(10, 27, 48, 0.55);
+      backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+      border: 1px solid rgba(202, 162, 61, 0.35);
+      border-radius: 24px;
+      padding: 40px 64px;
+      margin-top: clamp(46px, 7vw, 96px);
+      box-shadow: var(--shadow-lg), 0 0 60px rgba(202,162,61,0.12);
+      opacity: 0; transform: translateY(10px) scale(0.98);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+    #welcome-overlay.visible .welcome-box { opacity: 1; transform: translateY(0) scale(1); }
+    #welcome-overlay.fade-out .welcome-box { opacity: 0; transition: opacity .9s ease; }
+    #welcome-overlay .welcome-text {
+      font-family: 'Playfair Display', 'Syne', serif; font-weight: 700;
+      font-size: clamp(22px, 3.6vw, 44px);
+      color: var(--text); letter-spacing: .01em; text-align: center;
+      text-shadow: 0 0 30px rgba(202,162,61,0.55), 0 0 80px rgba(202,162,61,0.25);
+    }
+    #welcome-overlay .welcome-cursor {
+      display: inline-block; width: 3px; height: 1em; margin-left: 4px;
+      background: var(--accent2); vertical-align: -0.15em;
+      animation: blinkCursor .8s step-end infinite;
+    }
+    @keyframes blinkCursor { 50% { opacity: 0; } }
+    #welcome-overlay .welcome-crumb {
+      font-family: 'JetBrains Mono', monospace; font-weight: 500;
+      font-size: clamp(11px, 1.3vw, 15px);
+      letter-spacing: .08em;
+      color: var(--accent2);
+      min-height: 1.4em;
+      margin-bottom: 10px;
+      text-align: center;
+      max-width: 60vw;
+    }
+    #welcome-overlay .welcome-crumb:empty { margin-bottom: 0; }
+      margin-top: 16px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 500;
+      font-size: clamp(10px, 1.2vw, 13px);
+      letter-spacing: .3em; text-transform: uppercase;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 20%, #fff 40%, var(--accent2) 60%, var(--accent) 100%);
+      background-size: 250% auto;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      opacity: 0; transform: translateY(10px);
+      transition: opacity 1.1s ease, transform 1.1s ease;
+    }
+    #welcome-overlay .welcome-sub::before,
+    #welcome-overlay .welcome-sub::after {
+      content: ''; display: inline-block; width: 18px; height: 1px;
+      background: var(--accent); vertical-align: middle; opacity: .6;
+    }
+    #welcome-overlay .welcome-sub::before { margin-right: 10px; }
+    #welcome-overlay .welcome-sub::after { margin-left: 10px; }
+    #welcome-overlay.sub-visible .welcome-sub {
+      opacity: 1; transform: translateY(0);
+      animation: shimmerSub 4s linear .2s infinite;
+    }
+    @keyframes shimmerSub {
+      0% { background-position: 250% center; }
+      100% { background-position: -250% center; }
+    }
+
+    #intro-skip-btn {
+      position: absolute; z-index: 60; bottom: 28px; right: 28px;
+      background: rgba(10, 27, 48, 0.5); backdrop-filter: blur(14px);
+      border: 1px solid rgba(202,162,61,0.35); color: var(--accent2);
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .08em;
+      padding: 9px 18px; border-radius: 30px; cursor: pointer;
+      opacity: 0; pointer-events: none; transform: translateY(6px);
+      transition: opacity .5s ease, transform .5s ease, background .2s ease;
+    }
+    #intro-skip-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    #intro-skip-btn:hover { background: rgba(202,162,61,0.18); }
+
+
+  
+
+    /* ══ HEADER ══ */
+    #header {
+      position: absolute; top: 18px; left: 18px; z-index: 40;
+      background: rgba(3, 15, 30, 0.85); backdrop-filter: blur(20px);
+      border: 1px solid var(--border); border-radius: 50px;
+      padding: 8px 24px 8px 12px; display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--shadow); opacity: 0; animation: fadeUp .5s ease .3s forwards;
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .logo-wrapper {
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; padding: 4px 8px; border-radius: 20px;
+    }
+    .brand-logo { height: 28px; width: auto; object-fit: contain; }
+    
+    .header-text { display: flex; flex-direction: column; }
+    #header h1 { font-size: 14px; font-weight: 800; letter-spacing: .05em; color: var(--text); }
+    #header span { font-size: 10px; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    
+    .drawer-trigger {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--accent);
+      width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px;
+    }
+    .drawer-trigger:hover { background: var(--accent); color: var(--bg); }
+
+    /* ══ CONTROLS ══ */
+    #controls {
+      position: absolute; top: 18px; right: 18px; z-index: 40;
+      display: flex; gap: 8px; opacity: 0; animation: fadeIn .5s ease .5s forwards;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .ctrl-group {
+      background: rgba(3, 15, 30, 0.88); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      overflow: hidden; display: flex; box-shadow: var(--shadow);
+    }
+    .ctrl-btn {
+      width: 40px; height: 40px; background: transparent; border: none;
+      border-right: 1px solid var(--border); color: var(--text-dim);
+      font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; font-family: 'Syne', sans-serif; font-weight: 600; position: relative;
+    }
+    .ctrl-btn:last-child { border-right: none; }
+    .ctrl-btn:hover { background: rgba(202, 162, 61, 0.15); color: var(--accent2); }
+
+    /* ══ SIDE LIST DRAWER SYSTEM ══ */
+    #side-drawer {
+      position: absolute; left: -320px; top: 0; bottom: 0; width: 300px;
+      z-index: 50; background: var(--surface); border-right: 1px solid var(--border);
+      box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    #side-drawer.open { transform: translateX(320px); }
+    
+    .drawer-header {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .drawer-header h2 { font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+    .drawer-close {
+      background: transparent; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer;
+    }
+    
+    /* Search Bar Feature */
+    .search-box-container { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+    .search-input {
+      width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text); font-family: 'Syne', sans-serif; font-size: 12px;
+    }
+    .search-input:focus { border-color: var(--accent); outline: none; }
+
+    .legend-scroll { overflow-y: auto; flex: 1; padding: 10px 0; }
+    .legend-scroll::-webkit-scrollbar { width: 4px; }
+    .legend-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    
+    .legend-item {
+      display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+      font-size: 12px; cursor: pointer; transition: all .15s; color: var(--text-dim);
+    }
+    .legend-item:hover { background: rgba(202, 162, 61, 0.08); color: var(--text); }
+    .swatch { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+
+    /* ══ POPUP WINDOW / DETAILS DRAWER ══ */
+    #popup {
+      position: absolute; z-index: 45; bottom: 24px; right: 24px;
+      width: 330px; background: var(--surface); border: 1px solid var(--border-glow);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg);
+      display: none; flex-direction: column;
+      animation: slideIn .3s cubic-bezier(.16,1,.3,1);
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+    #popup .pop-img { width: 100%; height: 150px; object-fit: cover; display: block; }
+    #popup .pop-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+    #popup .pop-name { font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: .02em; }
+    #popup .pop-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 4px; }
+    
+    /* Structured Metadata Grid Fields */
+    .metadata-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 4px;
+    }
+    .meta-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 10px;
+    }
+    .meta-card .meta-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .meta-card .meta-val { font-size: 11px; font-weight: 700; color: var(--accent2); margin-top: 2px; line-height: 1.3; }
+    .meta-card.full-width { grid-column: span 2; }
+
+    #popup .pop-close {
+      position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(3, 15, 30, 0.75); backdrop-filter: blur(8px); border: 1px solid var(--border);
+      color: var(--text-dim); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    
+    /* Navigation and Action Buttons */
+    .action-row { display: flex; gap: 8px; margin-top: 10px; }
+    .action-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 0; border: none; border-radius: 8px; font-size: 12px; font-weight: 700;
+      font-family: 'Syne', sans-serif; cursor: pointer; transition: all .15s;
+    }
+    .btn-fly { background: linear-gradient(135deg, var(--accent) 0%, #a07a23 100%); color: var(--bg); }
+    .btn-fly:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-web { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    .btn-web:hover { background: var(--border); color: var(--accent2); }
+
+    #hover-tip {
+      position: absolute; z-index: 60; pointer-events: none;
+      background: rgba(3, 15, 30, 0.95); border: 1px solid var(--border-glow);
+      border-radius: 10px; overflow: hidden; display: none; width: 180px; box-shadow: var(--shadow);
+    }
+    #hover-tip .tip-body { padding: 8px 12px; }
+    #hover-tip .tip-name { font-size: 11px; font-weight: 700; color: var(--text); }
+
+    #coord-hud {
+      position: absolute; bottom: 24px; left: 24px; z-index: 40;
+      background: rgba(3, 15, 30, 0.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px;
+      font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--muted);
+    }
+    #coord-hud span { color: var(--text-dim); }
+
+    .dept-card { padding: 10px 12px !important; }
+    .dept-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .dept-tag {
+      display: inline-block; padding: 3px 9px; border-radius: 20px;
+      font-size: 9.5px; font-weight: 600; letter-spacing: .04em;
+      background: linear-gradient(135deg, rgba(202,162,61,0.18), rgba(202,162,61,0.08));
+      border: 1px solid rgba(202,162,61,0.35);
+      color: var(--accent2); line-height: 1.5; white-space: nowrap;
+    }
+
+    /* ══ ESSIC DRONE ══ */
+    #essic-drone-wrap {
+      position: absolute;
+      top: 72px; left: auto; right: 72px;
+      z-index: 45;
+      pointer-events: auto;
+      cursor: pointer;
+      transform-origin: center center;
+      animation: droneHover 2.8s ease-in-out infinite;
+      /* smooth repositioning when flying to building */
+      transition: top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s;
+    }
+    #essic-drone-wrap.flying-to-building {
+      animation: droneFlyForward 4.2s ease-in-out forwards;
+    }
+    #essic-drone-wrap.orbiting-building {
+      animation: droneOrbitBob 1.8s ease-in-out infinite;
+    }
+    #essic-drone-wrap.hovering {
+      animation: droneHover 2.8s ease-in-out infinite;
+    }
+    /* Old flying class kept for backward compat */
+    #essic-drone-wrap.flying {
+      animation: droneFlyForward 0.4s ease forwards;
+    }
+    @keyframes droneHover {
+      0%,100% { transform: translateY(0px) rotate(0deg); }
+      30%      { transform: translateY(-7px) rotate(1deg); }
+      70%      { transform: translateY(-4px) rotate(-1deg); }
+    }
+    @keyframes droneFlyForward {
+      0%   { transform: translateY(0px) rotate(0deg) scale(1); }
+      15%  { transform: translateY(-22px) rotate(-14deg) scale(1.08); }
+      55%  { transform: translateY(-18px) rotate(-10deg) scale(1.05); }
+      85%  { transform: translateY(-10px) rotate(-4deg) scale(1.02); }
+      100% { transform: translateY(-6px) rotate(0deg) scale(1); }
+    }
+    @keyframes droneOrbitBob {
+      0%,100% { transform: translateY(0px) rotate(0deg) scale(1); }
+      25%     { transform: translateY(-8px) rotate(3deg) scale(1.04); }
+      75%     { transform: translateY(-4px) rotate(-3deg) scale(0.98); }
+    }
+    /* Drone parked above the welcome card, gently bobbing while it "presents" the message */
+    #essic-drone-wrap.welcome-hover-bob {
+      animation: droneWelcomeBob 3.2s ease-in-out infinite;
+    }
+    @keyframes droneWelcomeBob {
+      0%,100% { transform: translate(-50%, -50%) scale(1) translateY(0); }
+      50%     { transform: translate(-50%, -50%) scale(1) translateY(-9px); }
+    }
+    /* Soft downward light beam — the drone "beaming" the welcome message onto the card */
+    #essic-drone-wrap.welcome-beacon::after {
+      content: '';
+      position: absolute; left: 50%; top: 88%;
+      width: 5px; height: 220px;
+      transform: translateX(-50%);
+      background: linear-gradient(to bottom, rgba(202,162,61,0.6), rgba(202,162,61,0.08) 55%, rgba(202,162,61,0));
+      filter: blur(4px);
+      pointer-events: none; z-index: -1;
+      animation: beaconPulse 2.6s ease-in-out infinite;
+    }
+    @keyframes beaconPulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+    /* Orbit ring indicator shown when drone is orbiting */
+    #drone-orbit-ring {
+      position: absolute;
+      inset: -18px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(202,162,61,0.5);
+      pointer-events: none;
+      opacity: 0;
+      animation: none;
+      transform: scale(0.6);
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    #essic-drone-wrap.orbiting-building #drone-orbit-ring {
+      opacity: 1;
+      transform: scale(1);
+      animation: orbitRingSpin 6s linear infinite;
+    }
+    @keyframes orbitRingSpin {
+      to { transform: rotate(360deg) scale(1); }
+    }
+    /* Speed lines behind drone during flight */
+    #drone-speed-lines {
+      position: absolute;
+      right: 100%; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 5px;
+      opacity: 0; transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    #essic-drone-wrap.flying-to-building #drone-speed-lines { opacity: 1; }
+    .speed-line {
+      height: 2px; border-radius: 2px;
+      background: linear-gradient(to left, rgba(202,162,61,0.6), transparent);
+      animation: speedLineAnim 0.4s ease-in-out infinite alternate;
+    }
+    .speed-line:nth-child(1) { width: 28px; animation-delay: 0s; }
+    .speed-line:nth-child(2) { width: 18px; animation-delay: 0.1s; }
+    .speed-line:nth-child(3) { width: 22px; animation-delay: 0.05s; }
+    @keyframes speedLineAnim {
+      from { width: 10px; opacity: 0.4; }
+      to   { opacity: 0.9; }
+    }
+
+    .drone-svg-body { display: block; }
+
+    /* Rotor spin */
+    .rotor { transform-origin: center center; animation: rotorSpin 0.18s linear infinite; }
+    .rotor-slow { transform-origin: center center; animation: rotorSpin 0.28s linear infinite; }
+    @keyframes rotorSpin { to { transform: rotate(360deg); } }
+
+    /* ESSIC logo tag hanging below drone */
+    #drone-logo-tag {
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto;
+      width: 88px;
+      background: #fff;
+      border-radius: 7px;
+      border: 1.5px solid #d0d0d0;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+      padding: 3px 5px;
+      position: relative;
+    }
+    #drone-logo-tag::before {
+      content: '';
+      position: absolute;
+      top: -12px; left: 50%; transform: translateX(-50%);
+      width: 1px; height: 12px;
+      background: rgba(150,150,150,0.7);
+      box-shadow: 1px 0 0 rgba(180,180,180,0.4);
+    }
+    #drone-logo-tag img { width: 78px; height: auto; display: block; }
+
+    /* Drone tooltip */
+    #drone-tooltip {
+      position: absolute;
+      bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+      background: rgba(2,12,24,0.92); backdrop-filter: blur(8px);
+      border: 1px solid rgba(202,162,61,0.5);
+      color: #f5d070; font-size: 9px; font-family: 'JetBrains Mono', monospace;
+      letter-spacing: .06em; white-space: nowrap;
+      padding: 4px 9px; border-radius: 5px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #essic-drone-wrap:hover #drone-tooltip { opacity: 1; }
+
+    /* ══ RESPONSIVE MOBILE TRANSFORMS ══ */
+    @media (max-width: 768px) {
+      #map {
+        position: absolute;
+        inset: 0;
+        height: 100%;
+        width: 100%;
+      }
+      /* #map-wrap { flex: 1; border-right: 1px solid var(--border); border-bottom: none; } */
+      
+      #header { top: 10px; left: 10px; right: 10px; padding: 6px 14px 6px 8px; }
+      #controls { top: auto; bottom: 16px; right: 10px; }
+      #coord-hud { display: none; }
+
+      #side-drawer { width: 85%; max-width: 280px; left: -300px; }
+      #side-drawer.open { transform: translateX(300px); }
+
+      #popup {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        height: 46vh !important;
+        border-radius: 0;
+        border: none;
+        border-top: 2px solid var(--border-glow);
+        background: var(--bg);
+        overflow-y: auto;
+        display: none;
+      }
+      #popup .pop-img { height: 140px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="load-logo-wrap">
+    <div class="load-logo-ring"></div>
+    <div class="load-logo-ring2"></div>
+    <img src="assets/Logo-hue.png"/>
+  </div>
+  <div class="load-title">Horus University</div>
+  <div class="load-sub">Campus Navigator · 3D Map</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div class="load-status" id="load-status">Initializing…</div>
+</div>
+
+<div id="app-shell">
+  <div id="map"></div>
+  <div id="welcome-overlay">
+    <div class="welcome-box">
+      <div class="welcome-crumb" id="welcome-crumb"></div>
+      <div class="welcome-text" id="welcome-text-el"><span id="welcome-typed"></span><span class="welcome-cursor">&nbsp;</span></div>
+      <div class="welcome-sub">Piloted &amp; Delivered by ESSIC</div>
+    </div>
+  </div>
+  <button id="intro-skip-btn" type="button">Skip intro →</button>
+
+  <div id="header">
+    <button class="drawer-trigger" id="drawer-open-btn" title="Open Building Directory">☰</button>
+    <div class="logo-wrapper">
+      <img src="assets/Logo-hue.png" class="brand-logo" alt="HUE Logo" />
+    </div>
+    <div class="header-text">
+      <h1>Horus University</h1>
+      <span>Developed by ESSIC</span>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btn-3d">2D</button>
+      <button class="ctrl-btn" id="btn-reset">⌖</button>
+    </div>
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btn-zoomin">+</button>
+      <button class="ctrl-btn" id="btn-zoomout">−</button>
+    </div>
+  </div>
+
+  <div id="side-drawer">
+    <div class="drawer-header">
+      <h2>Campus Directory</h2>
+      <button class="drawer-close" id="drawer-close-btn">✕</button>
+    </div>
+    <div class="search-box-container">
+      <input type="text" id="search-input" class="search-input" placeholder="Search structures, faculties..." />
+    </div>
+    <div class="legend-scroll">
+      <div id="legend-items"></div>
+    </div>
+  </div>
+
+  <div id="coord-hud">
+    LAT <span id="hud-lat">31.4490</span> &nbsp; LNG <span id="hud-lng">31.6572</span>
+  </div>
+
+  <div id="hover-tip">
+    <div class="tip-body">
+      <div class="tip-name" id="ht-name"></div>
+    </div>
+  </div>
+
+  <div id="popup">
+    <button class="pop-close" id="pop-close">✕</button>
+    <img class="pop-img" id="pop-img" src="" alt="Building Image" />
+    <div class="pop-body">
+      <div class="pop-name" id="pop-name"></div>
+      <div class="pop-desc" id="pop-desc"></div>
+      
+      <div class="metadata-grid">
+        <div class="meta-card">
+          <div class="meta-lbl">Structural Height</div>
+          <div class="meta-val" id="pop-height"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Floor Levels</div>
+          <div class="meta-val" id="pop-floors"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Established Date</div>
+          <div class="meta-val" id="pop-est"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-lbl">Daily Max Capacity</div>
+          <div class="meta-val" id="pop-capacity"></div>
+        </div>
+        <div class="meta-card full-width dept-card">
+          <div class="meta-lbl">Key Departments & Specializations</div>
+          <div class="dept-tags" id="pop-depts"></div>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="action-btn btn-fly" id="pop-fly-btn">✈ Orbit Focus</button>
+        <button class="action-btn btn-web" id="pop-web-btn">🌐 View Website</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+
+// Complete, Integrated, Non-duplicated Dataset (Faculties, Infrastructure, Gates, and Cafes)
+const BUILDINGS = [
+  { id:"faculty-of-engineering",            name:"Faculty of Engineering",            height:16, color:"#caa23d", roofColor:"#112643", type:"Academic",  image:"assets/eng.png",                         desc:"Advanced Engineering spaces, high-computing laboratories, and research workshops.", link:"https://eng.horus.edu.eg/", established:"2018", capacity:"+6,000 Students", depts:"Artificial Intelligence, Civil Engineering, Electrical Engineering, Biomedical Engineering, Architecture Engineering, Computer & Systems Engineering, Sustainable Architecture Engineering, Mechanical Engineering (Mechatronics)" },
+  { id:"faculty-of-medicine",               name:"Faculty of Medicine",               height:16, color:"#1a5f7a", roofColor:"#0a1b30", type:"Medical",   image:"assets/med.jpg",                         desc:"Medical educational frameworks, anatomy visualization centers, and direct clinical tracks.", link:"https://med.horus.edu.eg/", established:"2021", capacity:"+3,000 Students", depts:"Human Anatomy and Embryology, Histology and Cell biology, Medical Physiology, Clinical Pharmacology, Medical Biochemistry and Molecular Biology, Pathology, Medical Microbiology and Immunology and Parasitology" },
+  { id:"faculty-of-applied-medicine",       name:"Faculty of Applied Health Sciences",height:16, color:"#2b6cb0", roofColor:"#112643", type:"Medical",   image:"assets/applied-medicin.jpg",             desc:"Allied healthcare tracking, laboratory analysis hubs, and diagnostic learning paradigms.", link:"https://ahst.horus.edu.eg/", established:"2024", capacity:"+ 1,500 Students", depts:"Medical Laboratory Technology, Radiology and Medical Imaging Technology, Respiratory Care Technology, Dental Prosthetics Technology, Health Informatics and Management Technology" },
+  { id:"faculty-of-physical-therapy",       name:"Faculty of Physical Therapy",       height:16, color:"#319795", roofColor:"#0a1b30", type:"Medical",   image:"assets/phthy.jpg",                       desc:"Rehabilitation sciences complexes, biomechanics arrays, and out-patient wellness systems.", link:"https://phth.horus.edu.eg/", established:"2017", capacity:"+3,000 Students", depts:"Basic Science, Biomechanics, PT for Internal Medicine & Geriatrics, PT for Women’s Health, PT for Surgery & Integumentary, PT for Orthopaedic Surgery, PT for Neurology & Neurosurgery, Pediatric Physical Therapy" },
+  { id:"faculty-of-pharmacy",               name:"Faculty of Pharmacy",               height:16, color:"#2c5282", roofColor:"#112643", type:"Medical",   image:"assets/pharmacy.jpg",                    desc:"Pharmaceutical design architecture, research pharmacology pipelines, and chemistry arrays.", link:"https://pharm.horus.edu.eg/", established:"2016", capacity:"+3,000 Students", depts:"Pharmaceutics, Clinical Pharmacy, Pharmacognosy" },
+  { id:"faculty-of-artificial-intelligence",name:"Faculty of Artificial Intelligence",height:16, color:"#ff6b6b", roofColor:"#3a0000", type:"Academic",  image:"assets/ai.jpg",                          desc:"Next-gen AI incubation nodes, machine learning modules, robotics engineering centers.", link:"https://ai.horus.edu.eg/", established:"2022", capacity:"+1,500 Students", depts:"Artificial Intelligence for Robotics, Intelligent Systems, Intelligent Biomedical Computation, Intelligent Data Science, Intelligent Cyber-Security" },
+  { id:"Clinic-H-building",                 name:"Clinic H Building",                 height:16, color:"#4a5568", roofColor:"#1a202c", type:"Clinic",    image:"assets/clinics.jpg",                     desc:"Specialist student and public healthcare operations and diagnostic emergency facilities.", link:"https://www.horus.edu.eg", established:"2022", capacity:"+200 Visitors/Day", depts:"Outpatient Treatment, General Medicine" },
+  { id:"faculty-of-fine-arts",              name:"Faculty of Fine Arts & Design",     height:16, color:"#b7791f", roofColor:"#112643", type:"Academic",  image:"assets/fine-arts.jpg",                   desc:"Visual arts, internal interior architecture parameters, and multimedia rendering arrays.", link:"https://fa.horus.edu.eg/", established:"2024", capacity:"+1,000 Students", depts:"Interior Architecture and Design, Graphics and Media Arts, Animation Design and Multimedia, Furniture Design and Production Technology" },
+  { id:"faculty-of-alsun",                  name:"Faculty of Al-Alsun & translation", height:16, color:"#4c51bf", roofColor:"#0a1b30", type:"Academic",  image:"assets/alsun.jpg",                       desc:"Linguistics laboratories, multi-lingual interpretation setups, global cross-cultural tracks.", link:"https://at.horus.edu.eg/", established:"2024", capacity:"1,000 Students", depts:"English Language Programme, German Language Programme,  Chinese Language Programme" },
+  { id:"faculty-of-business-administrator", name:"Faculty of Business Administration",height:16, color:"#285e61", roofColor:"#112643", type:"Academic",  image:"assets/business.jpg",                    desc:"Economic strategy modeling suites, fintech sandboxes, and modern management simulations.", link:"https://bus.horus.edu.eg/", established:"2018", capacity:"+1,700 Students", depts:"Accounting, Marketing, Business Administration, Finance and Investment, Human Resources, Economics" },
+  { id:"hall-a",                            name:"Hall A Grand Auditorium",           height:11, color:"#9b2c2c", roofColor:"#3a0000", type:"Venue",     image:"assets/halla.png",                       desc:"High-capacity symposium theatre with spatial acoustic modeling for formal university events.", link:"https://www.horus.edu.eg", established:"2017", capacity:"1,600 Spectators", depts:"Conferences, Cultural Conventions, Graduation Events" },
+  { id:"faculty-of-dentistry",              name:"Faculty of Dentistry",              height:16, color:"#dd6b20", roofColor:"#0a1b30", type:"Medical",   image:"assets/dentistry.jpg",                   desc:"Oral health medicine fields, phantom head simulators, surgical testing centers.", link:"https://dent.horus.edu.eg/", established:"2016", capacity:"+2,000 Students", depts:"General & Basic Dental Science, Basic & Clinical Medical Sciences, Oral & Maxillofacial Surgery, Orthodontics, Periodontology & Oral Medicine, Prosthodontics, Restorative Dentistry" },
+  { id:"faculty-of-dentistry-clinics",      name:"Dentistry Clinics Block",           height:16, color:"#e2e8f0", roofColor:"#718096", type:"Clinic",    image:"assets/dent-clinc.jpeg",                 desc:"Public dental treatment suites and student practical training environments.", link:"https://www.horus.edu.eg", established:"2018", capacity:"1,500 Outpatients", depts:"Maxillofacial Care, Pedodontics, Dental Imaging Room" },
+  { id:"players",                           name:"Sports Complex Arena",              height:3,  color:"#38a169", roofColor:"#276749", type:"Sports",    image:"assets/sports.jpg",                      desc:"Multipurpose open stadium structures, tracks, and physical conditioning fitness options.", link:"https://www.horus.edu.eg", established:"2018", capacity:"3,000 Athletes", depts:"Football Pitch, Basketball Courts, Athletics Track" },
+  { id:"evoria-library",                    name:"Evoria Central Library",            height:3,  color:"#2c5282", roofColor:"#0a1b30", type:"Library",   image:"https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=500&auto=format&fit=crop", desc:"Multilevel literature hub containing specialized digital parsing points and research repositories.", link:"https://wa.me/+201012660345", established:"2021", capacity:"2000 paper/min", depts:"Printing & Stationery Services" },
+  { id:"administrat-zone",                  name:"Central Administration Zone",       height:4,  color:"#1a202c", roofColor:"#112643", type:"Admin",     image:"https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop", desc:"Executive leadership administrative offices, admissions, and registrars.", link:"https://www.horus.edu.eg", established:"2016", capacity:"400 Staff Nodes", depts:"Presidential Office, Admission Office, Student Affairs" },
+  { id:"gate-b",                            name:"Gate B",                            height:8,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"assets/gateb.jpg",                       desc:"Secondary campus entrance with security checkpoints.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Check-Point", depts:"Security Operations, Logistics Management" },
+  { id:"gate-a",                            name:"Main Gate A",                       height:8,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"assets/gate-a.jpg",                      desc:"Main campus entrance and visitor reception processing.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Main Entrance", depts:"Main Security Hub, Guest Relations" },
+  { id:"gate-c",                            name:"Gate C",                            height:6,  color:"#4a5568", roofColor:"#2d3748", type:"Gate",      image:"https://placehold.co/600x350/4a5568/ffffff?text=Gate+C",                          desc:"East campus gate access point.", link:"https://www.horus.edu.eg", established:"2018", capacity:"Check-Point", depts:"Auxiliary Entry Security" },
+  { id:"vanshy-cafee",                      name:"Vanshy Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/718096/111111?text=Vanshy+Cafe",                     desc:"Student lounge cafe near main academic quad grids.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"abutym-cafee",                      name:"Abutym Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/718096/111111?text=Abutym+Cafe",                     desc:"Quick service snack and drink depot for students.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"trend-cafee",                       name:"Trend Cafe",                        height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/d69e2e/ffffff?text=Trend+Cafe",                      desc:"Popular central student social meeting hub.", link:"https://www.horus.edu.eg", established:"2020", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"cheili-cafee",                      name:"Cheili Cafe",                       height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/d69e2e/ffffff?text=Cheili+Cafe",                     desc:"Cosy relaxation corner adjacent to medical facilities.", link:"https://www.horus.edu.eg", established:"2021", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"clinic-cafee",                      name:"Dentistry Cafe Lounge",             height:4,  color:"#718096", roofColor:"#4a5568", type:"Cafe",      image:"https://placehold.co/600x350/a0aec0/111111?text=Clinic+Cafe+Lounge",             desc:"Lounge zone adjacent directly to the clinic facility structures.", link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+  { id:"green-cafee",                       name:"Green Cafe",                        height:4,  color:"#718096", roofColor:"#718096", type:"Cafe",      image:"https://placehold.co/600x350/d69e2e/ffffff?text=Green+Cafe",                     desc:"Campus cafe serving hot and cold beverages.",link:"https://www.horus.edu.eg", established:"2022", capacity:"Leisure Area", depts:"Food and Beverage Services" },
+];
+
+const CAMPUS_CENTER = [31.6572, 31.4490];
+const MOBILE_BREAKPOINT = 768;
+const DESKTOP_CAMPUS_ZOOM = 17.55;
+const MOBILE_CAMPUS_ZOOM = 15.98;
+const INTRO_WAYPOINTS = [
+  { label:'Africa', center:[20.0, 2.0], zoom:2.1, pitch:0, bearing:0, duration:1600, wait:500 },
+  { label:'North Africa', center:[18.0, 27.0], zoom:3.55, pitch:0, bearing:0, duration:1500, wait:500 },
+  { label:'Egypt', center:[30.1, 26.8], zoom:5.7, pitch:0, bearing:0, duration:1600, wait:550 },
+  { label:'Damietta Governorate', center:[31.78, 31.37], zoom:9.9, pitch:18, bearing:0, duration:1800, wait:600 },
+  { label:'New Damietta City', center:[31.64, 31.44], zoom:13.6, pitch:35, bearing:-12, duration:1800, wait:600 },
+  { label:'Horus University', center:CAMPUS_CENTER, zoom:null, pitch:55, bearing:-20, duration:2200, wait:400 }
+];
+const buildingMap = {};
+BUILDINGS.forEach((b, i) => { buildingMap[b.id] = { ...b, featureIndex: i }; });
+
+function isMobileView() {
+  return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+function getCampusZoom() {
+  return isMobileView() ? MOBILE_CAMPUS_ZOOM : DESKTOP_CAMPUS_ZOOM;
+}
+
+function getCampusPadding() {
+  if (!isMobileView()) return { top: 90, bottom: 48, left: 48, right: 48 };
+  return { top: 92, bottom: 72, left: 22, right: 22 };
+}
+
+function getBuildingFocusPadding() {
+  if (!isMobileView()) return { top: 90, bottom: 64, left: 52, right: 390 };
+  return { top: 92, bottom: Math.round(window.innerHeight * 0.46) + 28, left: 22, right: 22 };
+}
+
+// Geofenced Spatial Poly Boundaries Map
+const COORDS = {
+  "faculty-of-engineering":            [[[31.655459,31.449984],[31.6558887,31.4500811],[31.6560652,31.4494841],[31.6556375,31.4493932],[31.6556071,31.449487],[31.6555817,31.4495779],[31.6558036,31.4496165],[31.6557478,31.4498283],[31.6555276,31.4497812],[31.655464,31.4499753],[31.655459,31.449984]]],
+  "faculty-of-medicine":               [[[31.65599,31.4492501],[31.6565048,31.449352],[31.6566765,31.4487788],[31.6564523,31.4487303],[31.6563417,31.449119],[31.6560616,31.449062],[31.65599,31.4492501]]],
+  "faculty-of-applied-medicine":       [[[31.6559404,31.4490368],[31.6557441,31.4490004],[31.6559073,31.4484272],[31.6563924,31.4485306],[31.6563483,31.4486999],[31.6560561,31.4486388],[31.6559404,31.4490368]]],
+  "faculty-of-physical-therapy":       [[[31.6562064,31.4481843],[31.6559988,31.4481475],[31.656155,31.4475705],[31.6566689,31.4476775],[31.6566216,31.4478599],[31.6563195,31.4477985],[31.6562064,31.448186]]],
+  "faculty-of-pharmacy":               [[[31.6563115,31.448225],[31.6567975,31.4483108],[31.6569679,31.447743],[31.6567694,31.4477],[31.6566534,31.448107],[31.6563652,31.4480405],[31.6563126,31.4482243]]],
+  "faculty-of-artificial-intelligence":[[[31.6578196,31.4504553],[31.658643,31.4506239],[31.658705,31.4504457],[31.6578748,31.4502754],[31.6578195,31.4504551],[31.6578196,31.4504553]]],
+  "Clinic-H-building":                 [[[31.6587048,31.4504457],[31.658488,31.450401],[31.6585899,31.450057],[31.6587964,31.4501074],[31.658705,31.4504457]]],
+  "faculty-of-fine-arts":              [[[31.6579712,31.4499146],[31.6587985,31.4501068],[31.658849,31.4499254],[31.658027,31.4497367],[31.6579712,31.4499146]]],
+  "faculty-of-alsun":                  [[[31.6582405,31.4490133],[31.6580843,31.4495679],[31.6585829,31.4496831],[31.6586412,31.4495033],[31.6583594,31.4494395],[31.6584775,31.4490478],[31.65825,31.4489982],[31.6582405,31.4490133]]],
+  "faculty-of-business-administrator": [[[31.6587503,31.4495298],[31.6589563,31.4495702],[31.6591312,31.4490036],[31.658635,31.4488852],[31.6585755,31.4490777],[31.6588603,31.4491331],[31.6587477,31.4495296],[31.6587503,31.4495298]]],
+  "hall-a":                            [[[31.6589201,31.4488698],[31.6589727,31.4486625],[31.6591686,31.4487001],[31.6591137,31.448909],[31.6589203,31.448868],[31.6589201,31.4488698]]],
+  "faculty-of-dentistry":              [[[31.6587022,31.4481115],[31.6585101,31.4480741],[31.6583436,31.4486452],[31.6588248,31.4487414],[31.6588775,31.4485847],[31.6585833,31.4485161],[31.6587022,31.4481115]]],
+  "faculty-of-dentistry-clinics":      [[[31.6592156,31.4486133],[31.6593176,31.4482383],[31.6588316,31.4481278],[31.6587655,31.4483119],[31.6590562,31.4483676],[31.6590023,31.448557],[31.6592179,31.4486157],[31.6592156,31.4486133]]],
+  "players":                           [[[31.65759309121302,31.44954907871262],[31.6574855,31.4499455],[31.6567311,31.449788],[31.656858,31.4493907],[31.65759309121302,31.44954907871262]]],
+  "evoria-library":                    [[[31.65600304828087,31.450227551244822],[31.65599562210338,31.45025668667111],[31.65589948321065,31.450235116274],[31.65590685588936,31.4502061907352],[31.65600304828087,31.450227551244822]]],
+  "administrat-zone":                  [[[31.65850597118879,31.45006962900713],[31.65843414730122,31.45035141871365],[31.65784024996589,31.45023751692243],[31.65791077718612,31.44996081415225],[31.65850597118879,31.45006962900713]]],
+  
+  /* Added Missing Gate & Cafe Spatial Boundaries Linked to Object Schemas */
+  "green-cafee": [[[31.6575447,31.4485877],[31.6575022,31.4487225],
+                 [31.6574231,31.4487028],[31.6574605,31.4485695],
+                 [31.6575447,31.4485877]]],
+  "gate-b":                            [[[31.6571519,31.4504897],[31.6571287,31.4505599],[31.65678457067986,31.45048505739345],[31.6568035,31.4504109],[31.6571519,31.4504897]]],
+  "gate-a":                            [[[31.65793309445738,31.44777866773491],[31.65791310376423,31.447857100073236],[31.6575551,31.447775],[31.6575763,31.4477053],[31.65793309445738,31.44777866773491]]],
+  "gate-c":                            [[[31.65957730632175,31.44803545557822],[31.65955859115897,31.448108883248793],[31.6595121114706,31.448101549319574],[31.65953074912963,31.448028425729902],[31.65957730632175,31.44803545557822]]],
+  "vanshy-cafee":                      [[[31.65610932219553,31.45020182897045],[31.6560991240153,31.450241839920494],[31.65601745669787,31.45022374764247],[31.65602759294893,31.45018397965421],[31.65610932219553,31.45020182897045]]],
+  "abutym-cafee":                      [[[31.65622252821746,31.45022229364999],[31.65621258780811,31.45026129326507],[31.65611177210349,31.4502390011734],[31.65622252821746,31.45022229364999]]],
+  "trend-cafee":                       [[[31.65569974493161,31.44917870104416],[31.65567674230056,31.449268949191392],[31.65560916984177,31.44925739205391],[31.65563208811057,31.44916747487599],[31.65569974493161,31.44917870104416]]],
+  "cheili-cafee":                      [[[31.6560019742042,31.44817972820593],[31.65597807346279,31.44827350098463],[31.65587294922494,31.44825532751356],[31.6558967134128,31.44816209047465],[31.6560019742042,31.44817972820593]]],
+  "clinic-cafee":                      [[[31.65915111111596,31.44864293514048],[31.65914352752327,31.44867268866499],[31.65893425494653,31.4486377721537],[31.65894174979943,31.44860836678062],[31.65915111111596,31.44864293514048]]]
+};
+
+const GEOJSON = {
+  type:"FeatureCollection",
+  features: BUILDINGS.map((b, idx) => ({
+    type:"Feature", id: idx,
+    properties:{ name:b.name, height:b.height, minHeight:0, color:b.color, roofColor:b.roofColor },
+    geometry:{ type:"Polygon", coordinates: COORDS[b.id] }
+  }))
+};
+
+let is3D = true;
+let activeBuildingId = null;
+let orbitAnimFrame = null;
+let orbitActive = false;
+let currentPopupId = null;
+let currentLinkTarget = "https://www.horus.edu.eg";
+
+function getCentroid(coords) {
+  let lngSum=0, latSum=0;
+  coords.forEach(([lng,lat]) => { lngSum+=lng; latSum+=lat; });
+  return [lngSum/coords.length, latSum/coords.length];
+}
+
+function easeInOutCubic(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+function easeOutBack(t)   { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+function easeOutCubic(t)  { return 1 - Math.pow(1-t, 3); }
+function easeInCubic(t)   { return t*t*t; }
+
+function buildFeatures(heightMap) {
+  return BUILDINGS.map((bl, idx) => ({
+    type:'Feature', id:idx,
+    properties:{
+      name:bl.name,
+      height: heightMap[bl.id] !== undefined ? Math.max(0, heightMap[bl.id]) : bl.height,
+      minHeight:0, color:bl.color, roofColor:bl.roofColor
+    },
+    geometry:{ type:'Polygon', coordinates:COORDS[bl.id] }
+  }));
+}
+
+function setSpotlight(map, targetId) {
+  if (targetId) {
+    const idx = buildingMap[targetId].featureIndex;
+    map.setPaintProperty('bldg-walls','fill-extrusion-color', ['case',['==',['id'],idx],['get','color'],'#0a1b30']);
+    map.setPaintProperty('bldg-walls','fill-extrusion-opacity', ['case',['==',['id'],idx],0.95,0.15]);
+    map.setPaintProperty('bldg-roof','fill-extrusion-color', ['case',['==',['id'],idx],['get','roofColor'],'#030f1e']);
+  } else {
+    map.setPaintProperty('bldg-walls','fill-extrusion-color',['get','color']);
+    map.setPaintProperty('bldg-walls','fill-extrusion-opacity',0.92);
+    map.setPaintProperty('bldg-roof','fill-extrusion-color',['get','roofColor']);
+  }
+}
+
+function stopOrbit() {
+  orbitActive = false;
+  if (orbitAnimFrame) { cancelAnimationFrame(orbitAnimFrame); orbitAnimFrame = null; }
+}
+
+function startOrbit(map, lng, lat) {
+  stopOrbit();
+  orbitActive = true;
+  const degreesPerMs = 360 / 60000; // 1 full rotation every 60 seconds (very slow)
+  const startBearing = map.getBearing();
+  let startTime = null;
+  function step(ts) {
+    if (!orbitActive) return;
+    if (!startTime) startTime = ts;
+    const elapsed = ts - startTime;
+    const bearing = startBearing + degreesPerMs * elapsed;
+    map.jumpTo({ bearing: bearing, center:[lng, lat] });
+    orbitAnimFrame = requestAnimationFrame(step); // continuous, never stops
+  }
+  orbitAnimFrame = requestAnimationFrame(step);
+}
+
+let riseAnimFrame = null;
+function stopRise() { if (riseAnimFrame) { cancelAnimationFrame(riseAnimFrame); riseAnimFrame = null; } }
+
+function startFlyRise(map, id) {
+  stopRise();
+  const b = buildingMap[id];
+  const targetH = b.height;
+  const SINK_MS = 1000, COLLAPSE_MS = 400, RISE_MS = 1400;
+  const startHeights = {};
+  BUILDINGS.forEach(bl => { startHeights[bl.id] = bl.height; });
+
+  let phase = 'sink';
+  let phaseStart = null;
+
+  function tick(ts) {
+    if (!phaseStart) phaseStart = ts;
+    const elapsed = ts - phaseStart;
+    let heightMap = {};
+
+    if (phase === 'sink') {
+      const t = Math.min(elapsed / SINK_MS, 1);
+      BUILDINGS.forEach(bl => {
+        if (bl.id === id) heightMap[bl.id] = targetH;
+        else heightMap[bl.id] = startHeights[bl.id] * (1 - easeOutCubic(t));
+      });
+      if (t >= 1) { phase = 'collapse'; phaseStart = ts; }
+    } else if (phase === 'collapse') {
+      const t = Math.min(elapsed / COLLAPSE_MS, 1);
+      BUILDINGS.forEach(bl => { heightMap[bl.id] = bl.id === id ? targetH * (1 - easeInCubic(t)) : 0; });
+      if (t >= 1) { phase = 'rise'; phaseStart = ts; }
+    } else {
+      const t = Math.min(elapsed / RISE_MS, 1);
+      BUILDINGS.forEach(bl => { heightMap[bl.id] = bl.id === id ? targetH * easeOutBack(t) : 0; });
+      if (t >= 1) {
+        map.getSource('campus').setData({ type:'FeatureCollection', features: buildFeatures({ [id]: targetH, ...Object.fromEntries(BUILDINGS.filter(bl=>bl.id!==id).map(bl=>[bl.id,0])) }) });
+        startOrbit(map, ...getCentroid(COORDS[id][0]));
+        return;
+      }
+    }
+    map.getSource('campus').setData({ type:'FeatureCollection', features: buildFeatures(heightMap) });
+    riseAnimFrame = requestAnimationFrame(tick);
+  }
+  riseAnimFrame = requestAnimationFrame(tick);
+}
+
+function flyTo(map, id) {
+  const b = buildingMap[id];
+  if (!b) return;
+  stopOrbit();
+  stopRise();
+  activeBuildingId = id;
+  const [lng, lat] = getCentroid(COORDS[id][0]);
+  const optimizedZoom = isMobileView() ? 17.0 : 17.7;
+
+  map.flyTo({
+    center:[lng, lat], zoom: optimizedZoom, pitch:65,
+    bearing: map.getBearing() + 45, duration:5000, padding:getBuildingFocusPadding(), easing: easeInOutCubic
+  });
+
+  map.once('moveend', () => {
+    if (activeBuildingId !== id) return;
+    setSpotlight(map, id);
+    startFlyRise(map, id);
+  });
+}
+
+function resetView(map) {
+  stopOrbit(); stopRise();
+  activeBuildingId = null; currentPopupId = null;
+  setSpotlight(map, null);
+  map.getSource('campus').setData(GEOJSON);
+  map.flyTo({ center:CAMPUS_CENTER, zoom:getCampusZoom(), pitch:50, bearing:-20, padding:getCampusPadding(), duration:1400 });
+}
+
+function zoomOutAfterBuildingOrbit(map, id) {
+  if (activeBuildingId !== id) return;
+  stopOrbit();
+  stopRise();
+  activeBuildingId = null;
+  setSpotlight(map, null);
+  map.getSource('campus').setData(GEOJSON);
+  map.flyTo({
+    center:CAMPUS_CENTER,
+    zoom:getCampusZoom(),
+    pitch:50,
+    bearing:-20,
+    padding:getBuildingFocusPadding(),
+    duration:2400,
+    easing:easeInOutCubic
+  });
+}
+
+function showPopup(b) {
+  currentPopupId = b.id;
+  currentLinkTarget = b.link || "https://www.horus.edu.eg";
+  
+  document.getElementById('pop-img').src = b.image;
+  document.getElementById('pop-name').textContent = b.name;
+  document.getElementById('pop-desc').textContent = b.desc;
+  document.getElementById('pop-height').textContent = b.height + " meters";
+  document.getElementById('pop-floors').textContent = Math.round(b.height / 4);
+  document.getElementById('pop-est').textContent = b.established || "N/A";
+  document.getElementById('pop-capacity').textContent = b.capacity || "N/A";
+  const deptsRaw = b.depts || "General Campus Access Infrastructure Point";
+  const deptsEl = document.getElementById('pop-depts');
+  const deptList = deptsRaw.split(',').map(d => d.trim()).filter(Boolean);
+  deptsEl.innerHTML = deptList.map(d => `<span class="dept-tag">${d}</span>`).join('');
+
+  document.getElementById('popup').style.display = 'flex';
+}
+
+function renderDirectoryList(map, items) {
+  const legendEl = document.getElementById('legend-items');
+  legendEl.innerHTML = '';
+  items.forEach(b => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="swatch" style="background:${b.color}"></div><span>${b.name}</span>`;
+    item.addEventListener('click', () => { 
+      flyTo(map, b.id); 
+      showPopup(b); window.triggerDroneFly && window.triggerDroneFly(b.id); 
+      if(window.innerWidth <= 768) {
+        document.getElementById('side-drawer').classList.remove('open');
+      }
+    });
+    legendEl.appendChild(item);
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const map = new maplibregl.Map({
+    container:'map',
+    style:{
+      version:8,
+      glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      transition: { duration: 2200, delay: 0 },
+      sources:{ osm:{ type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256, attribution:'© Horus University Maps' } },
+      layers:[
+        { id:'bg', type:'background', paint:{'background-color':'#030f1e'} },
+        { id:'tiles', type:'raster', source:'osm', paint:{'raster-opacity':1,'raster-saturation':0,'raster-brightness-min':0} }
+      ]
+    },
+    minZoom:0, maxZoom:18,
+    projection:'globe',
+    center:[CAMPUS_CENTER[0], 15], zoom:0.5, pitch:0, bearing:0, antialias:true
+  });
+
+  const WORLD_MASK = {
+    type:"FeatureCollection",
+    features:[{ type:"Feature", properties:{}, geometry:{ type:"Polygon", coordinates:[
+      [[-180,-90],[180,-90],[180,90],[-180,90],[-180,-90]],
+      [[31.658771,31.4512259],[31.6549304,31.450346],[31.6560799,31.446708],[31.6597999,31.4474533],[31.658771,31.4512259]]
+    ]}}]
+  };
+
+  map.on('load', () => {
+    // Atmosphere styling for the full-earth globe view
+    map.setSky({
+      'sky-color': '#0a1b30',
+      'sky-horizon-blend': 0.5,
+      'horizon-color': '#112643',
+      'horizon-fog-blend': 0.5,
+      'fog-color': '#caa23d',
+      'fog-ground-blend': 0.5
+    });
+
+    // Returning visitors within the same session skip straight to the settled campus view
+    const skipIntro = sessionStorage.getItem('huIntroPlayed') === '1';
+    let introSkipped = skipIntro;
+    let progressTimer;
+
+    // Slow auto-rotation of the globe while the loading screen is up
+    let globeSpinning = true;
+    function spinGlobe(timestamp) {
+      if (!globeSpinning || introSkipped) return;
+      const c = map.getCenter();
+      map.jumpTo({ center: [c.lng + 0.35, c.lat], zoom: map.getZoom(), pitch: 0, bearing: 0 });
+      requestAnimationFrame(spinGlobe);
+    }
+    if (!skipIntro) requestAnimationFrame(spinGlobe);
+
+    // Keeps the globe turning for one full extra revolution, easing to a stop
+    // exactly over a target — used so the earth is still visibly spinning
+    // while it settles onto the first waypoint (Africa), instead of sitting still.
+    function spinToTarget(targetCenter, targetZoom, duration, callback) {
+      const startCenter = map.getCenter();
+      const startLng = startCenter.lng;
+      const startLat = startCenter.lat;
+      const startZoom = map.getZoom();
+      let delta = ((targetCenter[0] - startLng) % 360 + 360) % 360;
+      delta += 360; // one extra full turn around the earth before settling
+      const endLng = startLng + delta;
+      const startTime = performance.now();
+      function frame(now) {
+        if (introSkipped) return;
+        const t = Math.min(1, (now - startTime) / duration);
+        const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        map.jumpTo({
+          center: [startLng + (endLng - startLng) * ease, startLat + (targetCenter[1] - startLat) * ease],
+          zoom: startZoom + (targetZoom - startZoom) * ease,
+          pitch: 0,
+          bearing: 0
+        });
+        if (t < 1) { requestAnimationFrame(frame); }
+        else if (callback) { callback(); }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Types only the newly-added segment of the breadcrumb, keeping earlier
+    // confirmed names static (e.g. "Africa, " already there, types "North Africa")
+    function typeSegment(el, prefix, text, speed, cb) {
+      let i = 0;
+      const timer = setInterval(() => {
+        if (introSkipped) { clearInterval(timer); return; }
+        i++;
+        el.textContent = prefix + text.slice(0, i);
+        if (i >= text.length) { clearInterval(timer); if (cb) cb(); }
+      }, speed);
+    }
+
+    function applyFinalMapTint() {
+      map.setPaintProperty('tiles', 'raster-opacity', 0.4);
+      map.setPaintProperty('tiles', 'raster-saturation', -0.3);
+      map.setPaintProperty('tiles', 'raster-brightness-min', 0.1);
+      if (map.getLayer('outside-mask')) map.setPaintProperty('outside-mask', 'fill-opacity', 0.9);
+    }
+
+    function runWaypoints(index, typedLabels) {
+      if (introSkipped) return;
+
+      if (index >= INTRO_WAYPOINTS.length) {
+        startFinalApproach();
+        return;
+      }
+
+      const waypoint = INTRO_WAYPOINTS[index];
+      const crumbEl = document.getElementById('welcome-crumb');
+      const overlay = document.getElementById('welcome-overlay');
+      const prefix = typedLabels.length ? typedLabels.join(', ') + ', ' : '';
+
+      overlay.classList.remove('fade-out');
+      overlay.classList.add('visible');
+
+      const travelDone = () => {
+        if (introSkipped) return;
+        typeSegment(crumbEl, prefix, waypoint.label, 45, () => {
+          if (introSkipped) return;
+          const nextLabels = typedLabels.concat(waypoint.label);
+          setTimeout(() => {
+            if (introSkipped) return;
+            if (index === INTRO_WAYPOINTS.length - 1) applyFinalMapTint();
+            runWaypoints(index + 1, nextLabels);
+          }, waypoint.wait);
+        });
+      };
+
+      if (index === 0) {
+        spinToTarget(waypoint.center, waypoint.zoom, waypoint.duration, travelDone);
+        return;
+      }
+
+      map.flyTo({
+        center: waypoint.center,
+        zoom: waypoint.zoom ?? getCampusZoom(),
+        pitch: waypoint.pitch,
+        bearing: waypoint.bearing,
+        duration: waypoint.duration,
+        padding: index === INTRO_WAYPOINTS.length - 1 ? getCampusPadding() : { top: 0, bottom: 0, left: 0, right: 0 },
+        curve: 1.25,
+        speed: 0.7,
+        essential: true,
+        easing: easeInOutCubic
+      });
+      map.once('moveend', travelDone);
+    }
+
+    // Typewriter effect for the "Welcome to Horus University" intro line
+    function typeWelcome(text, callback) {
+      const el = document.getElementById('welcome-typed');
+      const overlay = document.getElementById('welcome-overlay');
+      el.textContent = '';
+      overlay.classList.add('visible');
+      let i = 0;
+      const timer = setInterval(() => {
+        if (introSkipped) { clearInterval(timer); return; }
+        i++;
+        el.textContent = text.slice(0, i);
+        if (i >= text.length) {
+          clearInterval(timer);
+          overlay.classList.add('sub-visible');
+          setTimeout(() => {
+            overlay.classList.remove('visible');
+            overlay.classList.add('fade-out');
+            setTimeout(() => { if (callback) callback(); }, 700);
+          }, 1000);
+        }
+      }, 110);
+    }
+
+    function startFinalApproach() {
+      if (introSkipped) return;
+      typeWelcome('Welcome to Horus University', () => {
+        if (introSkipped) return;
+
+        droneWrap.classList.remove('welcome-hover-bob', 'welcome-beacon');
+
+        applyFinalMapTint();
+        map.easeTo({
+          center: CAMPUS_CENTER,
+          zoom: getCampusZoom(),
+          pitch: 55,
+          bearing: -20,
+          padding: getCampusPadding(),
+          duration: 1400,
+          easing: t => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2
+        });
+
+        const speedLines = droneWrap.querySelector('#drone-speed-lines');
+        if (speedLines) speedLines.style.opacity = '0';
+        droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.1s');
+        droneWrap.style.transition = 'top 1.6s cubic-bezier(.4,0,.2,1), left 1.6s cubic-bezier(.4,0,.2,1), transform 1.6s cubic-bezier(.4,0,.2,1)';
+        droneWrap.style.top = '32%';
+        droneWrap.style.transform = 'translate(-50%, -50%) scale(0.85)';
+
+        setTimeout(() => {
+          if (introSkipped) return;
+          const speedLines2 = droneWrap.querySelector('#drone-speed-lines');
+          if (speedLines2) speedLines2.style.opacity = '0';
+          droneWrap.style.transition = 'top 2.4s cubic-bezier(.4,0,.2,1), left 2.4s cubic-bezier(.4,0,.2,1), transform 2.4s cubic-bezier(.4,0,.2,1)';
+          droneWrap.style.left = (window.innerWidth - 130 - 72) + 'px';
+          droneWrap.style.top = '72px';
+          droneWrap.style.transform = 'scale(1)';
+
+          setTimeout(() => {
+            if (introSkipped) return;
+            droneWrap.style.transition = 'none';
+            droneWrap.style.right = '72px';
+            droneWrap.style.left = 'auto';
+            droneWrap.style.top = '72px';
+            droneWrap.style.transform = '';
+            droneWrap.style.animation = '';
+            droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
+            void droneWrap.offsetWidth;
+            droneWrap.classList.add('hovering');
+            // restore the base transition string used for building fly-tos
+            droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
+          }, 2500);
+        }, 800);
+      });
+    }
+
+    const loadBar = document.getElementById('load-bar');
+    const loadStatus = document.getElementById('load-status');
+    const steps = [
+      [20, 'Configuring HUE Vector Space…'],
+      [50, 'Projecting Structural Elements…'],
+      [85, 'Finalizing Texture Assemblies…'],
+      [100, 'System Operational']
+    ];
+    let stepIdx = 0;
+    progressTimer = setInterval(() => {
+      if (introSkipped) { clearInterval(progressTimer); return; }
+      if (stepIdx < steps.length) {
+        loadBar.style.width = steps[stepIdx] + '%';
+        loadStatus.textContent = steps[stepIdx];
+        stepIdx++;
+      } else {
+        clearInterval(progressTimer);
+        sessionStorage.setItem('huIntroPlayed', '1');
+        setTimeout(() => {
+          if (introSkipped) return;
+          document.getElementById('loading').classList.add('fade-out');
+          const skipBtn = document.getElementById('intro-skip-btn');
+          if (skipBtn) skipBtn.classList.add('show');
+
+          // Stop the globe auto-spin
+          globeSpinning = false;
+
+          // Position the drone above the welcome card, ready to "present" the message
+          droneWrap.classList.remove('hovering', 'orbiting-building', 'flying-to-building', 'welcome-hover-bob', 'welcome-beacon');
+          droneWrap.style.animation = 'none';
+          droneWrap.style.transition = 'opacity 1.4s ease, transform 1.4s ease';
+          droneWrap.style.right = 'auto';
+          droneWrap.style.left = '50%';
+          droneWrap.style.top = '25%';
+          droneWrap.style.transform = 'translate(-50%, -50%) scale(0.55)';
+          droneWrap.style.opacity = '0';
+
+          // FULL-EARTH → CAMPUS INTRO ANIMATION
+          // Step 1: zoom through a chain of named waypoints, waiting and
+          // typing the breadcrumb at each stop, before the final approach
+          runWaypoints(0, []);
+
+          // Fade the drone in, hovering above the card, beaming the location trail down as it types
+          setTimeout(() => {
+            droneWrap.style.opacity = '1';
+            droneWrap.style.transform = 'translate(-50%, -50%) scale(1) translateY(0)';
+            droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.1s');
+            droneWrap.classList.add('welcome-beacon');
+            setTimeout(() => droneWrap.classList.add('welcome-hover-bob'), 1400);
+          }, 400);
+
+        }, 300);
+      }
+    }, 150);
+
+    map.addSource('world-mask', { type:'geojson', data:WORLD_MASK });
+    map.addLayer({ id:'outside-mask', type:'fill', source:'world-mask', paint:{ 'fill-color':'#030f1e', 'fill-opacity':0 } });
+
+    map.addSource('campus', { type:'geojson', data:GEOJSON });
+
+    map.addLayer({ id:'bldg-walls', type:'fill-extrusion', source:'campus', paint:{
+      'fill-extrusion-color':['get','color'],
+      'fill-extrusion-height':['get','height'],
+      'fill-extrusion-base':['get','minHeight'],
+      'fill-extrusion-opacity':0.9,
+      'fill-extrusion-vertical-gradient':true
+    }});
+
+    map.addLayer({ id:'bldg-roof', type:'fill-extrusion', source:'campus', paint:{
+      'fill-extrusion-color':['get','roofColor'],
+      'fill-extrusion-height':['+',['get','height'],0.4],
+      'fill-extrusion-base':['get','height'],
+      'fill-extrusion-opacity':1
+    }});
+
+    map.addLayer({ id:'bldg-labels', type:'symbol', source:'campus', layout:{
+      'text-field':['get','name'],'text-font':['Noto Sans Regular'],
+      'text-size':11,'text-anchor':'center','text-allow-overlap':false
+    }, paint:{ 'text-color':'#e2ecf5','text-halo-color':'#030f1e','text-halo-width':2 }});
+
+    renderDirectoryList(map, BUILDINGS);
+
+    // ══ ESSIC DRONE — floats in viewport, flies when navigating ══
+    // Inject drone HTML into map container
+    const droneWrap = document.createElement('div');
+    droneWrap.id = 'essic-drone-wrap';
+    droneWrap.title = 'ESSIC — Click to visit website';
+    droneWrap.innerHTML = `
+      <div id="drone-tooltip">ESSIC · Electronic Services &amp; Scientific Innovation Center</div>
+
+      <!-- DRONE SVG -->
+      <svg class="drone-svg-body" width="110" height="72" viewBox="0 0 110 72" xmlns="http://www.w3.org/2000/svg">
+        <!-- Arm: top-left -->
+        <line x1="55" y1="36" x2="18" y2="18" stroke="#4a5568" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Arm: top-right -->
+        <line x1="55" y1="36" x2="92" y2="18" stroke="#4a5568" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Arm: bottom-left -->
+        <line x1="55" y1="36" x2="18" y2="54" stroke="#4a5568" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Arm: bottom-right -->
+        <line x1="55" y1="36" x2="92" y2="54" stroke="#4a5568" stroke-width="3.5" stroke-linecap="round"/>
+
+        <!-- Rotor mounts (motor hubs) -->
+        <circle cx="18" cy="18" r="6" fill="#2d3748"/>
+        <circle cx="92" cy="18" r="6" fill="#2d3748"/>
+        <circle cx="18" cy="54" r="6" fill="#2d3748"/>
+        <circle cx="92" cy="54" r="6" fill="#2d3748"/>
+
+        <!-- Rotors (spinning blades) -->
+        <g class="rotor">
+          <ellipse cx="18" cy="18" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(-35 18 18)"/>
+          <ellipse cx="18" cy="18" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(55 18 18)"/>
+        </g>
+        <g class="rotor" style="animation-direction:reverse">
+          <ellipse cx="92" cy="18" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(-35 92 18)"/>
+          <ellipse cx="92" cy="18" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(55 92 18)"/>
+        </g>
+        <g class="rotor">
+          <ellipse cx="18" cy="54" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(-35 18 54)"/>
+          <ellipse cx="18" cy="54" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(55 18 54)"/>
+        </g>
+        <g class="rotor" style="animation-direction:reverse">
+          <ellipse cx="92" cy="54" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(-35 92 54)"/>
+          <ellipse cx="92" cy="54" rx="14" ry="3" fill="rgba(160,180,210,0.55)" transform="rotate(55 92 54)"/>
+        </g>
+
+        <!-- Body: main chassis -->
+        <rect x="40" y="26" width="30" height="20" rx="5" fill="#1a202c" stroke="#4a5568" stroke-width="1"/>
+        <!-- Body highlight -->
+        <rect x="42" y="28" width="26" height="7" rx="3" fill="#2d3748" opacity="0.8"/>
+        <!-- Camera dome -->
+        <ellipse cx="55" cy="48" rx="6" ry="4" fill="#0d1117" stroke="#4a5568" stroke-width="1"/>
+        <circle cx="55" cy="48" r="2.5" fill="#1a4a8a" opacity="0.9"/>
+        <!-- LED lights: front gold -->
+        <circle cx="55" cy="29" r="2" fill="#caa23d" opacity="0.95">
+          <animate attributeName="opacity" values="0.95;0.3;0.95" dur="1.2s" repeatCount="indefinite"/>
+        </circle>
+        <!-- LED lights: rear red -->
+        <circle cx="55" cy="44" r="1.5" fill="#e53e3e" opacity="0.9">
+          <animate attributeName="opacity" values="0.9;0.2;0.9" dur="0.8s" repeatCount="indefinite"/>
+        </circle>
+        <!-- Landing gear left -->
+        <line x1="46" y1="48" x2="43" y2="58" stroke="#4a5568" stroke-width="2" stroke-linecap="round"/>
+        <line x1="40" y1="58" x2="46" y2="58" stroke="#4a5568" stroke-width="2" stroke-linecap="round"/>
+        <!-- Landing gear right -->
+        <line x1="64" y1="48" x2="67" y2="58" stroke="#4a5568" stroke-width="2" stroke-linecap="round"/>
+        <line x1="64" y1="58" x2="70" y2="58" stroke="#4a5568" stroke-width="2" stroke-linecap="round"/>
+        <!-- Rotor blur ring overlays for spin effect -->
+        <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(180,200,230,0.12)" stroke-width="3"/>
+        <circle cx="92" cy="18" r="15" fill="none" stroke="rgba(180,200,230,0.12)" stroke-width="3"/>
+        <circle cx="18" cy="54" r="15" fill="none" stroke="rgba(180,200,230,0.12)" stroke-width="3"/>
+        <circle cx="92" cy="54" r="15" fill="none" stroke="rgba(180,200,230,0.12)" stroke-width="3"/>
+      </svg>
+
+      <!-- Orbit ring indicator -->
+      <div id="drone-orbit-ring"></div>
+      <!-- Speed lines during flight -->
+      <div id="drone-speed-lines">
+        <div class="speed-line"></div>
+        <div class="speed-line"></div>
+        <div class="speed-line"></div>
+      </div>
+      <!-- LOGO TAG hanging below drone -->
+      <div id="drone-logo-tag">
+        <img src="data:image/png;base64,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" alt="ESSIC Logo" />
+      </div>
+    `;
+
+    // Add drone to the map container (not the map canvas)
+    document.getElementById('map').appendChild(droneWrap);
+
+    // Click → open website
+    droneWrap.addEventListener('click', () => window.open('https://horus.edu.eg/electronic-services-and-scientific-innovation-essic/', '_blank'));
+
+    // Snap straight to the settled campus view — used for returning visitors
+    // (session-skipped intro) and for the manual "Skip intro" button.
+    function goToFinalState() {
+      introSkipped = true;
+      globeSpinning = false;
+      if (progressTimer) clearInterval(progressTimer);
+
+      document.getElementById('loading').classList.add('fade-out');
+      const overlay = document.getElementById('welcome-overlay');
+      overlay.classList.remove('visible', 'sub-visible');
+      overlay.classList.add('fade-out');
+
+      map.jumpTo({
+        center: CAMPUS_CENTER,
+        zoom: getCampusZoom(),
+        pitch: 55,
+        bearing: -20,
+        padding: getCampusPadding()
+      });
+      applyFinalMapTint();
+
+      droneWrap.classList.remove('welcome-hover-bob', 'welcome-beacon', 'orbiting-building', 'flying-to-building');
+      droneWrap.style.transition = 'none';
+      droneWrap.style.animation = '';
+      droneWrap.style.right = '72px';
+      droneWrap.style.left = 'auto';
+      droneWrap.style.top = '72px';
+      droneWrap.style.transform = '';
+      droneWrap.style.opacity = '1';
+      droneWrap.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
+      const speedLines = droneWrap.querySelector('#drone-speed-lines');
+      if (speedLines) speedLines.style.opacity = '0';
+      void droneWrap.offsetWidth;
+      droneWrap.classList.add('hovering');
+      droneWrap.style.transition = 'top 4.2s cubic-bezier(.4,0,.2,1), left 4.2s cubic-bezier(.4,0,.2,1), right 0.1s';
+
+      const skipBtn = document.getElementById('intro-skip-btn');
+      if (skipBtn) skipBtn.classList.remove('show');
+    }
+
+    const skipBtn = document.getElementById('intro-skip-btn');
+    if (skipBtn) skipBtn.addEventListener('click', goToFinalState);
+
+    if (skipIntro) goToFinalState();
+
+    // Animate drone when flying to a building
+    const _origFlyTo = flyTo;
+
+    // Track drone's current "home" position for return
+    const DRONE_HOME = { top: 72, right: 72 };
+
+    function triggerDroneFly(buildingId) {
+      const droneEl = droneWrap;
+
+      // --- Phase 1: lift off and fly toward the building ---
+      droneEl.classList.remove('hovering', 'orbiting-building', 'flying-to-building');
+      droneEl.style.transition = 'none';
+
+      // Speed up rotors for takeoff
+      droneEl.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.07s');
+
+      // Get building screen position via map project
+      let destX = window.innerWidth / 2;
+      let destY = window.innerHeight / 2;
+
+      if (buildingId && COORDS[buildingId]) {
+        try {
+          const [lng, lat] = getCentroid(COORDS[buildingId][0]);
+          // project after a short delay so flyTo has started moving
+          setTimeout(() => {
+            const pt = map.project([lng, lat]);
+            destX = pt.x;
+            destY = pt.y;
+          }, 600);
+        } catch(e) {}
+      }
+
+      // Begin flight animation class
+      void droneEl.offsetWidth; // force reflow
+      droneEl.classList.add('flying-to-building');
+
+      // After 1s, re-enable position transition and move drone toward building
+      setTimeout(() => {
+        // Get screen coords of building (after map has moved a bit)
+        let targetLeft = destX, targetTop = destY;
+        if (buildingId && COORDS[buildingId]) {
+          try {
+            const [lng, lat] = getCentroid(COORDS[buildingId][0]);
+            const pt = map.project([lng, lat]);
+            targetLeft = pt.x - 55; // center drone over building
+            targetTop  = pt.y - 36;
+          } catch(e) {}
+        }
+
+        // Clamp to viewport
+        targetLeft = Math.max(20, Math.min(window.innerWidth - 130, targetLeft));
+        targetTop  = Math.max(20, Math.min(window.innerHeight - 100, targetTop));
+
+        droneEl.style.transition = 'top 3.4s cubic-bezier(.4,0,.2,1), left 3.4s cubic-bezier(.4,0,.2,1)';
+        droneEl.style.right = 'auto';
+        droneEl.style.left = targetLeft + 'px';
+        droneEl.style.top  = targetTop  + 'px';
+      }, 900);
+
+      // Phase 2: arrive → switch to orbit bob over building
+      setTimeout(() => {
+        droneEl.classList.remove('flying-to-building');
+        droneEl.classList.add('orbiting-building');
+        droneEl.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.14s');
+      }, 4600);
+
+      // Phase 3: orbit for ~12s, then return home
+      setTimeout(() => {
+        zoomOutAfterBuildingOrbit(map, buildingId);
+        droneEl.classList.remove('orbiting-building');
+        droneEl.classList.add('flying-to-building');
+        droneEl.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '0.07s');
+
+        // Fly back to home position (top-right corner)
+        setTimeout(() => {
+          droneEl.style.transition = 'top 3.2s cubic-bezier(.4,0,.2,1), left 3.2s cubic-bezier(.4,0,.2,1), right 3.2s';
+          droneEl.style.left  = (window.innerWidth - 130 - DRONE_HOME.right) + 'px';
+          droneEl.style.top   = DRONE_HOME.top + 'px';
+        }, 600);
+
+        // Land back home
+        setTimeout(() => {
+          droneEl.classList.remove('flying-to-building');
+          droneEl.style.transition = 'none';
+          droneEl.style.right = DRONE_HOME.right + 'px';
+          droneEl.style.left  = 'auto';
+          droneEl.style.top   = DRONE_HOME.top + 'px';
+          droneEl.querySelectorAll('.rotor').forEach(r => r.style.animationDuration = '');
+          void droneEl.offsetWidth;
+          droneEl.classList.add('hovering');
+        }, 4000);
+
+      }, 17000); // stay orbiting for ~12 seconds
+    }
+
+    // Expose triggerDroneFly globally with building id
+    window.triggerDroneFly = triggerDroneFly;
+
+    // Search Engine Filter
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      const matching = BUILDINGS.filter(b => b.name.toLowerCase().includes(term) || b.depts.toLowerCase().includes(term));
+      renderDirectoryList(map, matching);
+    });
+
+    map.on('move', () => {
+      const center = map.getCenter();
+      document.getElementById('hud-lat').textContent = center.lat.toFixed(4);
+      document.getElementById('hud-lng').textContent = center.lng.toFixed(4);
+    });
+
+    const hoverTip = document.getElementById('hover-tip');
+    ['bldg-walls','bldg-roof'].forEach(layer => {
+      map.on('mousemove', layer, e => {
+        map.getCanvas().style.cursor = 'pointer';
+        const b = BUILDINGS[e.features[0].id];
+        if (!b) return;
+        document.getElementById('ht-name').textContent = b.name;
+        hoverTip.style.display = 'block';
+        hoverTip.style.left = (e.point.x + 12) + 'px';
+        hoverTip.style.top = (e.point.y - 45) + 'px';
+      });
+
+      map.on('mouseleave', layer, () => {
+        map.getCanvas().style.cursor = '';
+        hoverTip.style.display = 'none';
+      });
+
+      map.on('click', layer, e => {
+        const b = BUILDINGS[e.features[0].id];
+        if (b) { flyTo(map, b.id); showPopup(b); window.triggerDroneFly && window.triggerDroneFly(b.id); }
+      });
+    });
+
+    document.getElementById('drawer-open-btn').addEventListener('click', () => {
+      document.getElementById('side-drawer').classList.add('open');
+    });
+    document.getElementById('drawer-close-btn').addEventListener('click', () => {
+      document.getElementById('side-drawer').classList.remove('open');
+    });
+    document.getElementById('pop-close').addEventListener('click', () => {
+      document.getElementById('popup').style.display = 'none';
+      resetView(map);
+    });
+    document.getElementById('pop-fly-btn').addEventListener('click', () => {
+      if (currentPopupId) { flyTo(map, currentPopupId); window.triggerDroneFly && window.triggerDroneFly(currentPopupId); }
+    });
+    document.getElementById('pop-web-btn').addEventListener('click', () => {
+      window.open(currentLinkTarget, '_blank');
+    });
+
+    document.getElementById('btn-3d').addEventListener('click', () => {
+      is3D = !is3D;
+      map.easeTo({ pitch: is3D ? 50 : 0, bearing: is3D ? -60 : 0, duration: 1000 });
+      document.getElementById('btn-3d').textContent = is3D ? '2D' : '3D';
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      document.getElementById('popup').style.display = 'none';
+      resetView(map);
+    });
+    document.getElementById('btn-zoomin').addEventListener('click', () => map.zoomIn());
+    document.getElementById('btn-zoomout').addEventListener('click', () => map.zoomOut());
+  });
+});
+</script>
+</body>
+</html>
